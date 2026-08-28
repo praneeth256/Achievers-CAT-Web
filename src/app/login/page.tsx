@@ -67,7 +67,7 @@ function LoginForm() {
       <button
         onClick={handleGoogleSignIn}
         disabled={loading}
-        className="mt-8 flex w-full items-center justify-center gap-3 rounded-full border border-border bg-white px-5 py-3 text-[14.5px] font-semibold text-foreground shadow-sm transition hover:border-brand hover:text-brand-darker disabled:opacity-60"
+        className="mt-8 flex cursor-pointer w-full items-center justify-center gap-3 rounded-full border border-border bg-white px-5 py-3 text-[14.5px] font-semibold text-foreground shadow-sm transition hover:border-brand hover:text-brand-darker disabled:opacity-60"
       >
         {loading ? (
           <Loader2 size={18} className="animate-spin text-brand" />

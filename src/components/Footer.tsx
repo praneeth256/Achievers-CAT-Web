@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Logo from "./Logo";
+import { GitBranch } from "lucide-react";
+import { FaGithub, FaWhatsapp } from "react-icons/fa";
 
 export default function Footer() {
   return (
@@ -13,7 +15,7 @@ export default function Footer() {
               everything you need to prepare for CAT, in one place.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-wide text-muted">Practice</p>
               <ul className="mt-3 space-y-2 text-[13.5px]">
@@ -34,6 +36,14 @@ export default function Footer() {
               <ul className="mt-3 space-y-2 text-[13.5px]">
                 <li><Link href="/login" className="text-foreground/80 hover:text-brand-darker">Log in</Link></li>
                 <li><Link href="/admin" className="text-foreground/80 hover:text-brand-darker">Admin</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-[12px] truncate font-semibold uppercase tracking-wide text-muted">Social Media</p>
+              <ul className="flex gap-5 mt-3 space-y-2 text-[13.5px]">
+                <li><Link target="_blank" href="https://github.com/praneeth256/Achievers-CAT-Web/" className="text-foreground/80 hover:text-brand-darker"><FaGithub size={20}/></Link></li>
+                <li><Link target="_blank" href="https://chat.whatsapp.com/L59MZiqz4ueKOSEyZ06TxD" className="text-foreground/80 hover:text-brand-darker"><FaWhatsapp size={20}/></Link></li>
               </ul>
             </div>
           </div>
