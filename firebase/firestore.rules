@@ -135,6 +135,14 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // A group stores one shared RC passage or DILR set with its four linked
+    // questions. It follows the same publishing permissions as standalone
+    // practice questions.
+    match /practice_groups/{groupId} {
+      allow read: if (signedIn() && resource.data.published == true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
 
     match /question_options/{optionId} {
 
