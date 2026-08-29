@@ -45,6 +45,10 @@ const nav = [
     ],
   },
   {
+    label: "Practice",
+    href: "/practice",
+  },
+  {
     label: "Sectional Mocks",
     href: "/sectional",
     children: [

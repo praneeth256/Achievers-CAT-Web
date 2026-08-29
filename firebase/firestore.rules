@@ -128,6 +128,13 @@ service cloud.firestore {
         if isAdmin();
     }
 
+    // Chapter-wise practice questions. Students can only receive questions
+    // that an admin has explicitly published.
+    match /practice_questions/{questionId} {
+      allow read: if (signedIn() && resource.data.published == true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
 
     match /question_options/{optionId} {
 
