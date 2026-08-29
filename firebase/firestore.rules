@@ -143,6 +143,14 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // A student's saved chapter-practice answers are private to that student.
+    match /practice_attempts/{attemptId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && (isAdmin() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid));
+      allow delete: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
 
     match /question_options/{optionId} {
 
