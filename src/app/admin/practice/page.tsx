@@ -61,7 +61,9 @@ function PracticeManager() {
     if (!/^[ABCD]$/.test(value.correctOption)) throw new Error("Correct option must be A, B, C, or D.");
   }
   function validateGroup(value: PracticeGroup) {
-    if (!value.chapter.trim() || !value.title.trim() || !value.content.trim() || value.questions.length !== 4) throw new Error("An RC passage or DILR set needs a chapter, title, shared content, and exactly four questions.");
+    if (!value.chapter.trim() || !value.title.trim() || !value.content.trim()) throw new Error("Add a chapter, title, and shared passage or set content.");
+    if (value.section === "VARC-RC" && value.questions.length < 4) throw new Error("An RC passage needs at least four linked questions.");
+    if (value.section === "DILR" && value.questions.length !== 4) throw new Error("A DILR set needs exactly four linked questions.");
     value.questions.forEach((question) => validate({ ...question, section: "Quant", chapter: value.chapter, difficulty: value.difficulty, published: value.published }));
   }
   async function saveManual() {
