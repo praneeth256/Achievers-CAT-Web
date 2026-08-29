@@ -6,9 +6,9 @@ import { CheckCircle2, ClipboardPaste, Loader2, Plus, Upload } from "lucide-reac
 import AdminGuard from "@/components/AdminGuard";
 import { db } from "@/lib/firebase/client";
 
-type PracticeQuestion = { section: "Quant" | "VARC-VA"; chapter: string; difficulty: "Easy" | "Moderate" | "Hard"; question: string; options: string[]; correctOption: string; explanation?: string; published: boolean };
+type PracticeQuestion = { section: "Quant" | "VARC-VA"; chapter: string; difficulty: "Easy" | "Moderate" | "Hard" | "Difficult"; question: string; options: string[]; correctOption: string; explanation?: string; published: boolean };
 type GroupQuestion = Pick<PracticeQuestion, "question" | "options" | "correctOption" | "explanation">;
-type PracticeGroup = { section: "VARC-RC" | "DILR"; chapter: string; title: string; content: string; difficulty: "Easy" | "Moderate" | "Hard"; questions: GroupQuestion[]; published: boolean };
+type PracticeGroup = { section: "VARC-RC" | "DILR"; chapter: string; title: string; content: string; difficulty: "Easy" | "Moderate" | "Hard" | "Difficult"; questions: GroupQuestion[]; published: boolean };
 const emptyQuestion = (): PracticeQuestion => ({ section: "Quant", chapter: "Arithmetic", difficulty: "Moderate", question: "", options: ["", "", "", ""], correctOption: "A", explanation: "", published: true });
 const sample = `{
   "questions": [{
@@ -57,12 +57,12 @@ function PracticeManager() {
   const update = <K extends keyof PracticeQuestion>(key: K, value: PracticeQuestion[K]) => setForm((current) => ({ ...current, [key]: value }));
 
   function validate(value: PracticeQuestion) {
-    if (!value.chapter.trim() || !value.question.trim() || value.options.some((option) => !option.trim())) throw new Error("Add a chapter, question, and all four options.");
-    if (!/^[ABCD]$/.test(value.correctOption)) throw new Error("Correct option must be A, B, C, or D.");
+    if (!value.chapter.trim() || !value.question.trim() || value.options.length < 4 || value.options.length > 5 || value.options.some((option) => !option.trim())) throw new Error("Add a chapter, question, and four or five non-empty options.");
+    if (!/^[ABCDE]$/.test(value.correctOption) || value.options.length < "ABCDE".indexOf(value.correctOption) + 1) throw new Error("Correct option must match one of the supplied options (A to E).");
   }
   function validateGroup(value: PracticeGroup) {
     if (!value.chapter.trim() || !value.title.trim() || !value.content.trim()) throw new Error("Add a chapter, title, and shared passage or set content.");
-    if (value.section === "VARC-RC" && value.questions.length < 4) throw new Error("An RC passage needs at least four linked questions.");
+    if (value.section === "VARC-RC" && !value.questions.length) throw new Error("An RC passage needs at least one linked question.");
     if (value.section === "DILR" && value.questions.length !== 4) throw new Error("A DILR set needs exactly four linked questions.");
     value.questions.forEach((question) => validate({ ...question, section: "Quant", chapter: value.chapter, difficulty: value.difficulty, published: value.published }));
   }
