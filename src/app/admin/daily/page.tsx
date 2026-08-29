@@ -510,12 +510,23 @@ function DailyEditor() {
         }
       }
 
-      setData(
-        normalizePackage(
-          date,
-          imported
-        )
-      );
+      // Import only the sections included in the pasted JSON. This prevents
+      // a Quant-only update from clearing the existing VARC and DILR fields.
+      setData((current) => normalizePackage(date, {
+        ...current,
+        ...imported,
+        quant: Array.isArray(imported.quant) ? imported.quant : current.quant,
+        varc: imported.varc ? {
+          ...current.varc,
+          ...imported.varc,
+          questions: Array.isArray(imported.varc.questions) ? imported.varc.questions : current.varc.questions,
+        } : current.varc,
+        dilr: imported.dilr ? {
+          ...current.dilr,
+          ...imported.dilr,
+          questions: Array.isArray(imported.dilr.questions) ? imported.dilr.questions : current.dilr.questions,
+        } : current.dilr,
+      }));
 
       setBulkImportOpen(false);
       setBulkImportText("");
