@@ -27,8 +27,9 @@ const nav = [
     href: "/",
   },
   {
-    label: "Daily Practice",
+    label: "Daily Targets",
     href: "/daily",
+    free: true,
     children: [
       {
         label: "Quantitative Aptitude",
@@ -51,6 +52,7 @@ const nav = [
   {
     label: "Sectional Mocks",
     href: "/sectional",
+    free: true,
     children: [
       {
         label: "VARC",
@@ -69,10 +71,12 @@ const nav = [
   {
     label: "Full Mocks",
     href: "/mocks",
+    free: true,
   },
   {
     label: "Materials",
     href: "/materials",
+    free: true,
   },
   {
     label: "My Performance",
@@ -211,8 +215,9 @@ export default function Header() {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
+                  className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
                 >
+                  {item.free && <span className="absolute -right-1 -top-1 animate-pulse rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm shadow-brand/40">Free</span>}
                   {item.label}
 
                   <ChevronDown
@@ -241,8 +246,9 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
+                className="relative rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
               >
+                {item.free && <span className="absolute -right-1 -top-1 animate-pulse rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm shadow-brand/40">Free</span>}
                 {item.label}
               </Link>
             )
@@ -397,9 +403,10 @@ export default function Header() {
                 <Link
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-2 py-2 text-[15px] font-medium text-foreground"
+                  className="flex items-center justify-between rounded-lg px-2 py-2 text-[15px] font-medium text-foreground"
                 >
                   {item.label}
+                  {item.free && <span className="animate-pulse rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-brand-darker">Free</span>}
                 </Link>
 
                 {/* SUB ITEMS */}

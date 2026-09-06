@@ -836,7 +836,9 @@ function DailyQuestionContent() {
    */
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_160px] lg:gap-6">
+      <div>
       {/* --------------------------------------------------
           HEADER
       -------------------------------------------------- */}
@@ -899,7 +901,7 @@ function DailyQuestionContent() {
           {/* SCORE AFTER SUBMISSION */}
 
           {submitted ? (
-            <div className="rounded-xl border border-brand/30 bg-brand-tint px-4 py-2.5 text-center shadow-sm">
+            <div className="rounded-xl border border-brand/30 bg-brand-tint px-4 py-2.5 text-center shadow-sm lg:hidden">
               <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-darker">
                 <Trophy size={12} />
                 Score
@@ -911,7 +913,7 @@ function DailyQuestionContent() {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-white px-4 py-2.5 text-center shadow-sm">
+            <div className="rounded-xl border border-border bg-white px-4 py-2.5 text-center shadow-sm lg:hidden">
               <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
                 <Clock3 size={12} />
                 Time left
@@ -1407,6 +1409,14 @@ function DailyQuestionContent() {
           </div>
         </div>
       )}
+      </div>
+
+      <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+        <div className="rounded-2xl border border-border bg-white p-4 text-center shadow-sm">
+          {submitted ? <><p className="text-[10px] font-bold uppercase tracking-wider text-brand-darker"><Trophy className="mx-auto mb-1" size={14} />Score</p><p className="font-mono text-2xl font-extrabold tabular-nums text-brand-dark">{finalScore}/{questions.length * 3}</p></> : <><p className="text-[10px] font-bold uppercase tracking-wider text-muted"><Clock3 className="mx-auto mb-1" size={14} />Time left</p><p className="font-mono text-2xl font-extrabold tabular-nums text-brand-dark">{timeText}</p><p className="mt-2 text-xs text-muted">{currentQuestion + 1} of {questions.length}</p></>}
+        </div>
+      </aside>
+      </div>
     </div>
   );
 }
