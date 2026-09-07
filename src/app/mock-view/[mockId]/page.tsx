@@ -5,12 +5,13 @@ import { doc, getDoc, getDocs, query, collection, serverTimestamp, setDoc, updat
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Loader2, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase/client";
 import { calculatePercentiles, estimatePercentile, type RankingAttempt } from "@/lib/mockPercentile";
 
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
 type SavedAttempt = { status: "in_progress" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
-type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
+type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
 
 function addAchieversBridge(html: string) {
   const bridge = `<script>
@@ -44,10 +45,13 @@ function addAchieversBridge(html: string) {
           return;
         }
       }
-      function reportNewMockResult() {
+      function reportNewMockResult(savedResult) {
         if (sent || typeof TEST_META === 'undefined' || typeof loadAllResults !== 'function') return;
         var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
-        var result = testId ? loadAllResults()[testId] : null;
+        // Sandboxed srcDoc files cannot always access localStorage. The new
+        // mock hands the complete result to saveResult(), so prefer that
+        // value and only use localStorage as a fallback for normal pages.
+        var result = savedResult || (testId ? loadAllResults()[testId] : null);
         if (!result) return;
         sent = true;
         send('submitted', {
@@ -104,17 +108,31 @@ function addAchieversBridge(html: string) {
             return value;
           };
         }
+        if (typeof TEST_META !== 'undefined' && typeof saveResult === 'function') {
+          var originalSaveResult = saveResult;
+          window.saveResult = function () {
+            var value = originalSaveResult.apply(this, arguments);
+            reportNewMockResult(arguments[1]);
+            return value;
+          };
+        }
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
-          if (getComputedStyle(result).display !== 'none') { reportResult(); reportVisibleResult(); }
+          if (getComputedStyle(result).display !== 'none') { reportResult(); reportNewMockResult(); reportVisibleResult(); }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
         new MutationObserver(function () { reportVisibleResult(); }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
         document.addEventListener('click', function (event) {
           var control = event.target && event.target.closest && event.target.closest('button, [role="button"], input[type="submit"]');
           var label = (control && (control.textContent || control.value) || '').trim();
+          if (/back to test list/i.test(label)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            send('back-to-list');
+            return;
+          }
           if (/start|begin|attempt/i.test(label)) send('started');
           if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportVisibleResult(); }, 400);
-        });
+        }, true);
         send('ready');
       });
       window.addEventListener('message', function (event) {
@@ -141,6 +159,7 @@ function addAchieversBridge(html: string) {
 }
 
 export default function MockViewPage({ params }: { params: Promise<{ mockId: string }> }) {
+  const router = useRouter();
   const [mockId, setMockId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [mock, setMock] = useState<Mock | null>(null);
@@ -180,6 +199,10 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
       if (event.source !== frameRef.current?.contentWindow || !user || !mock || !mockId) return;
       const data = event.data;
       if (data?.source !== "achievers-mock") return;
+      if (data.type === "back-to-list") {
+        router.push(`/sectional?section=${mock.section || "VARC"}`);
+        return;
+      }
       const attemptDocument = doc(db, "attempts", `${user.uid}_${mockId}`);
       try {
         if (data.type === "started" && !attemptRef.current) {
@@ -216,7 +239,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [attempt, mock, mockId, user]);
+  }, [attempt, mock, mockId, router, user]);
 
   useEffect(() => {
     if (!user || !mockId) return;
