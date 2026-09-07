@@ -27,11 +27,20 @@ export default function SectionalTabs() {
     if (!user) return;
     return onSnapshot(query(collection(db, "attempts"), where("userId", "==", user.uid)), (snapshot) => {
       const next: Record<string, MockSummary["attempted"]> = {};
+      const firstSubmittedAt: Record<string, number> = {};
       snapshot.docs.forEach((item) => {
         const value = item.data();
         if (value.status !== "submitted" || value.type !== "sectional" || !value.mockId) return;
-        const submittedAt = value.submittedAt?.toDate?.();
-        next[String(value.mockId)] = {
+        const submittedAt = value.submittedAt?.toDate?.() || value.startedAt?.toDate?.();
+        const mockId = String(value.mockId);
+        const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
+        // Some legacy uploads created one document per reattempt. Keep the
+        // first completed record so the card and its analysis never drift to
+        // a later retake. Current uploads use one document and follow this
+        // same rule naturally.
+        if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
+        firstSubmittedAt[mockId] = attemptedAt;
+        next[mockId] = {
           score: Number(value.score || 0),
           total: Number(value.total || 0),
           correct: Number(value.correct || 0),

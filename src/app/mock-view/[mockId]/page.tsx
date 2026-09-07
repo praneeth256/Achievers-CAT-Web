@@ -9,8 +9,8 @@ import { auth, db } from "@/lib/firebase/client";
 import { calculatePercentiles, estimatePercentile, type RankingAttempt } from "@/lib/mockPercentile";
 
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
-type SavedAttempt = { status: "in_progress" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number };
-type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number };
+type SavedAttempt = { status: "in_progress" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
+type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
 
 function addAchieversBridge(html: string) {
   const bridge = `<script>
@@ -44,6 +44,45 @@ function addAchieversBridge(html: string) {
           return;
         }
       }
+      function reportNewMockResult() {
+        if (sent || typeof TEST_META === 'undefined' || typeof loadAllResults !== 'function') return;
+        var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
+        var result = testId ? loadAllResults()[testId] : null;
+        if (!result) return;
+        sent = true;
+        send('submitted', {
+          score: Number(result.marks || 0),
+          total: Number(result.total || (typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId] ? QUESTION_BANK[testId].length : 0)),
+          correct: Number(result.correct || 0),
+          wrong: Number(result.wrong || 0),
+          answers: result.answers || {},
+          secondsLeft: 0,
+          timeTakenSeconds: Number(result.timeUsedSec || 0)
+        });
+      }
+      function restoreNewMockResult(data) {
+        if (typeof TEST_META === 'undefined' || !TEST_META[0] || typeof renderResultScreen !== 'function' || typeof showScreen !== 'function') return false;
+        var testId = TEST_META[0].id;
+        var questions = typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId] ? QUESTION_BANK[testId] : [];
+        var restoredAnswers = data.answers || {};
+        var correct = 0, wrong = 0, wrongMCQ = 0, wrongTITA = 0, skip = 0;
+        questions.forEach(function (question, index) {
+          var answer = restoredAnswers[index];
+          if (answer === undefined || answer === '') { skip++; return; }
+          if (String(answer).trim() === String(question.correct).trim()) correct++;
+          else { wrong++; if (question.qType === 'MCQ') wrongMCQ++; else wrongTITA++; }
+        });
+        currentTestId = testId;
+        answers = restoredAnswers;
+        if (typeof clearInterval === 'function' && typeof timerInt !== 'undefined') clearInterval(timerInt);
+        renderResultScreen(testId, {
+          marks: typeof data.score === 'number' ? data.score : (correct * 3 - wrongMCQ), correct: correct, wrong: wrong,
+          wrongMCQ: wrongMCQ, wrongTITA: wrongTITA, skip: skip, mm: 0, ss: 0,
+          timeUsedSec: Number(data.timeTakenSeconds || 0), questionTimeSec: {}
+        });
+        showScreen('result-screen');
+        return true;
+      }
       function hideIntroForAnalysis() {
         var intro = document.querySelectorAll('#start-screen, #welcome-screen, #instructions-screen, #intro-screen, [data-screen="start"], [data-screen="intro"], [class*="instructions" i], [class*="rules" i]');
         intro.forEach(function (element) { element.style.display = 'none'; });
@@ -54,6 +93,17 @@ function addAchieversBridge(html: string) {
         });
       }
       document.addEventListener('DOMContentLoaded', function () {
+        // New sectional files expose a complete test-list/result application,
+        // while older files expose QUESTIONS + showResults. Hook the new
+        // app's result function without changing either uploaded source file.
+        if (typeof TEST_META !== 'undefined' && typeof showResults === 'function') {
+          var originalShowResults = showResults;
+          window.showResults = function () {
+            var value = originalShowResults.apply(this, arguments);
+            reportNewMockResult();
+            return value;
+          };
+        }
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
           if (getComputedStyle(result).display !== 'none') { reportResult(); reportVisibleResult(); }
@@ -70,13 +120,16 @@ function addAchieversBridge(html: string) {
       window.addEventListener('message', function (event) {
         var data = event.data || {};
         if (data.source !== 'achievers-platform') return;
-        if (data.type === 'restore' && data.answers && typeof showResults === 'function') {
+        if (data.type === 'restore' && data.answers) {
           window.__achieversAnalysis = true;
-          answers = data.answers;
-          submitted = true;
-          if (typeof clearInterval === 'function' && typeof timerInt !== 'undefined') clearInterval(timerInt);
-          hideIntroForAnalysis();
-          showResults();
+          if (restoreNewMockResult(data)) return;
+          if (typeof showResults === 'function') {
+            answers = data.answers;
+            submitted = true;
+            if (typeof clearInterval === 'function' && typeof timerInt !== 'undefined') clearInterval(timerInt);
+            hideIntroForAnalysis();
+            showResults();
+          }
         }
       });
     })();
@@ -153,9 +206,9 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           const percentile = calculatePercentiles(rankings, total, mock.difficulty).get(user.uid) || 0;
           await Promise.all([
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
-            updateDoc(attemptDocument, { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers || {}, timeTakenSeconds: Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)), submittedAt: serverTimestamp() }),
+            updateDoc(attemptDocument, { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers || {}, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)), submittedAt: serverTimestamp() }),
           ]);
-          const submitted: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers };
+          const submitted: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)) };
           attemptRef.current = submitted;
           setAttempt(submitted);
         }
@@ -197,7 +250,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
   }, []);
 
   function restoreAnalysis() {
-    if (attempt?.status === "submitted" && attempt.answers) frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: attempt.answers }, "*");
+    if (attempt?.status === "submitted" && attempt.answers) frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: attempt.answers, score: attempt.score, timeTakenSeconds: attempt.timeTakenSeconds }, "*");
   }
 
   if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Sign in to open this mock</h1><Link href={`/login?returnTo=${encodeURIComponent(`/mock-view/${mockId || ""}`)}`} className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white">Continue with Google</Link></div>;

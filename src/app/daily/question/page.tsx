@@ -6,6 +6,7 @@ import {
   getDoc,
   runTransaction,
   serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
@@ -262,6 +263,11 @@ function DailyQuestionContent() {
           setCurrentQuestion(0);
         }
 
+        // The archive is intentionally separate from today's live activity.
+        // Do not read historical counters: this prevents quota-heavy retries
+        // and ensures old attempts cannot affect the current leaderboard.
+        if (date !== todayIST()) return;
+
         const statSnap = await getDoc(
           doc(
             db,
@@ -451,6 +457,42 @@ function DailyQuestionContent() {
     const updateStreak = date === todayIST();
 
     try {
+      /*
+       * Previous daily targets are practice/archive attempts. They do not
+       * affect today's streak or live leaderboard, so save them directly
+       * without reading the shared section counter. This avoids exhausting
+       * Firestore reads for older targets.
+       */
+      if (!updateStreak) {
+        const archivedAttempt = {
+          userId: user.uid,
+          email: user.email || "",
+          displayName: user.displayName || "",
+          date,
+          section,
+          score,
+          correct,
+          wrong,
+          total,
+          answers,
+          timeTakenSeconds: 15 * 60 - seconds,
+          timedOut: auto,
+          submittedAt: serverTimestamp(),
+        };
+
+        await setDoc(
+          doc(db, "daily_attempts", attemptId),
+          archivedAttempt,
+          { merge: true }
+        );
+
+        setAttempt(archivedAttempt);
+        setSubmitted(true);
+        setStarted(false);
+        setCurrentQuestion(0);
+        return;
+      }
+
       await runTransaction(
         db,
         async (transaction) => {
