@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, limit, onSnapshot, query } from "firebase/firestore";
 import { ArrowRight, BookOpenCheck, Brain, CheckCircle2, Flame, Loader2, Network, Target } from "lucide-react";
 import { auth, db } from "@/lib/firebase/client";
 
@@ -11,7 +11,7 @@ type Section = "quant" | "varc" | "dilr";
 type AttemptFilter = "all" | "attempted" | "unattempted";
 type SortOrder = "newest" | "oldest" | "score-ascending" | "score-descending";
 type DailyAttempt = { score?: number; total?: number };
-type DailyPackage = { id: string; date?: string; quant?: { title?: string }[]; varc?: { type?: "RC" | "VA"; title?: string; questions?: unknown[] }; dilr?: { title?: string; questions?: unknown[] } };
+type DailyPackage = { id: string; date?: string; published?: boolean; quant?: { title?: string }[]; varc?: { type?: "RC" | "VA"; title?: string; questions?: unknown[] }; dilr?: { title?: string; questions?: unknown[] } };
 
 const todayIST = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const formatDate = (date: string) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date(date + "T00:00:00+05:30"));
@@ -51,7 +51,14 @@ export default function DailyTargetsPage() {
   const today = useMemo(() => todayIST(), []);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
-  useEffect(() => onSnapshot(query(collection(db, "daily_packages"), where("published", "==", true), orderBy("date", "desc"), limit(60)), (snapshot) => { setPackages(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)); setLoading(false); }, (error) => { console.error("Could not load daily targets:", error); setLoading(false); }), []);
+  useEffect(() => onSnapshot(query(collection(db, "daily_packages"), limit(60)), (snapshot) => {
+    const availablePackages = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)
+      .filter((item) => item.published !== false)
+      .sort((a, b) => (b.date || b.id).localeCompare(a.date || a.id));
+    setPackages(availablePackages);
+    setLoading(false);
+  }, (error) => { console.error("Could not load daily targets:", error); setLoading(false); }), []);
   useEffect(() => {
     if (!user || !packages.length) return;
     let active = true;

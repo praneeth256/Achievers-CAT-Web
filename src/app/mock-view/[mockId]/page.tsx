@@ -30,6 +30,20 @@ function addAchieversBridge(html: string) {
         });
         send('submitted', { score: score, total: QUESTIONS.length, correct: correct, wrong: wrong, answers: answers, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
       }
+      function reportVisibleResult() {
+        if (sent) return;
+        var candidates = document.querySelectorAll('[data-score], #score, [id*="score" i], [class*="score" i], [id*="result" i], [class*="result" i]');
+        for (var index = 0; index < candidates.length; index++) {
+          var candidate = candidates[index];
+          if (getComputedStyle(candidate).display === 'none' || getComputedStyle(candidate).visibility === 'hidden') continue;
+          var text = (candidate.textContent || '').trim();
+          var match = text.match(/(?:score|marks?)[^0-9-]*(-?[0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*([0-9]+))?/i);
+          if (!match) continue;
+          sent = true;
+          send('submitted', { score: Number(match[1]), total: typeof QUESTIONS !== 'undefined' ? QUESTIONS.length : (match[2] ? Math.round(Number(match[2]) / 3) : 0), correct: 0, wrong: 0, answers: typeof answers !== 'undefined' ? answers : {}, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
+          return;
+        }
+      }
       function hideIntroForAnalysis() {
         var intro = document.querySelectorAll('#start-screen, #welcome-screen, #instructions-screen, #intro-screen, [data-screen="start"], [data-screen="intro"], [class*="instructions" i], [class*="rules" i]');
         intro.forEach(function (element) { element.style.display = 'none'; });
@@ -42,8 +56,15 @@ function addAchieversBridge(html: string) {
       document.addEventListener('DOMContentLoaded', function () {
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
-          if (getComputedStyle(result).display !== 'none') reportResult();
+          if (getComputedStyle(result).display !== 'none') { reportResult(); reportVisibleResult(); }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
+        new MutationObserver(function () { reportVisibleResult(); }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
+        document.addEventListener('click', function (event) {
+          var control = event.target && event.target.closest && event.target.closest('button, [role="button"], input[type="submit"]');
+          var label = (control && (control.textContent || control.value) || '').trim();
+          if (/start|begin|attempt/i.test(label)) send('started');
+          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportVisibleResult(); }, 400);
+        });
         send('ready');
       });
       window.addEventListener('message', function (event) {
@@ -76,6 +97,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
   const [message, setMessage] = useState("");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const attemptRef = useRef<SavedAttempt | null>(null);
+  const startWriteRef = useRef<Promise<void> | null>(null);
   const mockRef = useRef<Mock | null>(null);
 
   useEffect(() => { attemptRef.current = attempt; }, [attempt]);
@@ -107,16 +129,24 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
       if (data?.source !== "achievers-mock") return;
       const attemptDocument = doc(db, "attempts", `${user.uid}_${mockId}`);
       try {
-        if (data.type === "started" && !attempt) {
+        if (data.type === "started" && !attemptRef.current) {
           const started: SavedAttempt = { status: "in_progress" };
           // Mark locally before the network request so closing immediately after
           // starting still queues the zero-score finalisation below.
           attemptRef.current = started;
           setAttempt(started);
-          await setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
+          startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
+          await startWriteRef.current;
         }
-        if (data.type === "submitted" && attempt?.status !== "submitted") {
-          const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = Number(data.total || 0);
+        if (data.type === "submitted" && attemptRef.current?.status !== "submitted") {
+          if (!attemptRef.current) {
+            const started: SavedAttempt = { status: "in_progress" };
+            attemptRef.current = started;
+            setAttempt(started);
+            startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
+          }
+          if (startWriteRef.current) await startWriteRef.current;
+          const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = Number(data.total || mock.questions || 0);
           const rankingSnapshot = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)));
           const rankings = rankingSnapshot.docs.map((item) => item.data() as RankingAttempt).filter((item) => item.userId !== user.uid);
           rankings.push({ userId: user.uid, score, correct, wrong });

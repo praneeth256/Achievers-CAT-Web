@@ -48,6 +48,7 @@ const nav = [
   {
     label: "Practice",
     href: "/practice",
+    free: true,
   },
   {
     label: "Sectional Mocks",
