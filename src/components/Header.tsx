@@ -49,6 +49,10 @@ const nav = [
     label: "Practice",
     href: "/practice",
     free: true,
+    children: [
+      { label: "Topic-wise Questions", href: "/practice" },
+      { label: "Topic-wise PYQs", href: "/practice/pyqs" },
+    ],
   },
   {
     label: "Sectional Mocks",
