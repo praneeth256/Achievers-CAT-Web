@@ -21,6 +21,7 @@ import {
   Trophy,
   Loader2,
   Users,
+  X,
 } from "lucide-react";
 
 import {
@@ -164,6 +165,7 @@ function daysUntilCat() {
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [practiceChooserOpen, setPracticeChooserOpen] = useState(false);
   const [streak, setStreak] = useState(0);
 
   const [attempts, setAttempts] = useState<
@@ -531,13 +533,14 @@ export default function Home() {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/daily"
+              <button
+                type="button"
+                onClick={() => setPracticeChooserOpen(true)}
                 className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-[14.5px] font-semibold text-white shadow-sm shadow-brand/30 transition hover:bg-brand-dark"
               >
                 Start Practising
                 <ArrowRight size={16} />
-              </Link>
+              </button>
 
               <Link
                 href="/mocks"
@@ -959,6 +962,44 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {practiceChooserOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 px-4 py-6"
+          role="presentation"
+          onClick={() => setPracticeChooserOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="practice-chooser-title"
+            className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-brand-dark">Choose your practice</p>
+                <h2 id="practice-chooser-title" className="mt-1 font-display text-2xl font-bold text-foreground">What would you like to practise?</h2>
+              </div>
+              <button type="button" onClick={() => setPracticeChooserOpen(false)} aria-label="Close practice choices" className="rounded-full p-2 text-muted transition hover:bg-surface-muted hover:text-foreground"><X size={19} /></button>
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Link href="/practice" onClick={() => setPracticeChooserOpen(false)} className="group rounded-2xl border border-border p-5 transition hover:border-brand hover:bg-brand-tint">
+                <BookOpenText className="text-brand" size={22} />
+                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Practice questions</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">Choose a section and topic to practise chapter-wise questions.</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">Start practice <ArrowRight size={14} /></span>
+              </Link>
+              <Link href="/practice/pyqs" onClick={() => setPracticeChooserOpen(false)} className="group rounded-2xl border border-border p-5 transition hover:border-brand hover:bg-brand-tint">
+                <FileText className="text-brand" size={22} />
+                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Topic-wise PYQs</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">Solve past-year CAT questions organised by section and topic.</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">View PYQs <ArrowRight size={14} /></span>
+              </Link>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
