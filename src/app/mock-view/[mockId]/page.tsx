@@ -228,6 +228,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
   const router = useRouter();
   const [mockId, setMockId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [mock, setMock] = useState<Mock | null>(null);
   const [attempt, setAttempt] = useState<SavedAttempt | null>(null);
   const [html, setHtml] = useState("");
@@ -242,7 +243,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
   useEffect(() => { mockRef.current = mock; }, [mock]);
 
   useEffect(() => { params.then((value) => setMockId(value.mockId)); }, [params]);
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); setAuthLoading(false); }), []);
 
   useEffect(() => {
     if (!mockId || !user) return;
@@ -393,6 +394,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, timeTakenSeconds: savedAttempt.timeTakenSeconds }, "*");
   }
 
+  if (authLoading) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Restoring your session…</div>;
   if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Sign in to open this mock</h1><Link href={`/login?returnTo=${encodeURIComponent(`/mock-view/${mockId || ""}`)}`} className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white">Continue with Google</Link></div>;
   if (status === "error") return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Could not open mock</h1><p className="mt-2 text-sm text-danger">{message}</p></div>;
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
