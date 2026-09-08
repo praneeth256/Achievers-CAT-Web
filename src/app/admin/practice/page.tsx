@@ -72,7 +72,7 @@ export function PracticeManager({ library = "practice" }: { library?: "practice"
     value.questions.forEach((question) => validate({ ...question, section: "Quant", chapter: value.chapter, difficulty: value.difficulty, published: value.published }));
   }
   async function saveManual() {
-    try { validate(form); setSaving(true); await addDoc(collection(db, questionCollection), { ...form, chapter: form.chapter.trim(), question: form.question.trim(), options: form.options.map((option) => option.trim()), explanation: form.explanation?.trim() || "", position: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }); setForm(emptyQuestion()); setMessage(`${isPyq ? "PYQ" : "Practice"} question published for students.`); }
+    try { validate(form); setSaving(true); await addDoc(collection(db, questionCollection), { ...form, chapter: form.chapter.trim(), question: form.question.trim(), options: form.questionType === "TITA" ? [] : form.options.map((option) => option.trim()), explanation: form.explanation?.trim() || "", position: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }); setForm(emptyQuestion()); setMessage(`${isPyq ? "PYQ" : "Practice"} question published for students.`); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Could not save question."); }
     finally { setSaving(false); }
   }
@@ -87,7 +87,7 @@ export function PracticeManager({ library = "practice" }: { library?: "practice"
       setSaving(true);
       for (let start = 0; start < rows.length; start += 450) {
         const batch = writeBatch(db);
-        rows.slice(start, start + 450).forEach((item, index) => batch.set(doc(collection(db, questionCollection)), { ...item, chapter: item.chapter.trim(), question: item.question.trim(), options: item.options.map((option) => option.trim()), explanation: item.explanation?.trim() || "", published: item.published !== false, position: Date.now() + start + index, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+        rows.slice(start, start + 450).forEach((item, index) => batch.set(doc(collection(db, questionCollection)), { ...item, chapter: item.chapter.trim(), question: item.question.trim(), options: item.questionType === "TITA" ? [] : (item.options || []).map((option) => option.trim()), explanation: item.explanation?.trim() || "", published: item.published !== false, position: Date.now() + start + index, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
         await batch.commit();
       }
       for (let start = 0; start < groups.length; start += 450) {
