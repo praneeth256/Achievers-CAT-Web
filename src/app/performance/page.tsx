@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { ChevronDown, Loader2, Trophy } from "lucide-react";
 import Link from "next/link";
 import { auth, db } from "@/lib/firebase/client";
 
-type Attempt = { id: string; type?: string; section?: string; status?: string; score?: number; total?: number };
+type Attempt = { id: string; mockId?: string; type?: string; section?: string; status?: string; score?: number; total?: number; correct?: number; wrong?: number };
+type Ranking = { userId: string; score?: number; correct?: number; wrong?: number };
+type Leader = { userId: string; name: string; score: number; correct: number; wrong: number };
+type MockResult = { id: string; name: string; score: number; total: number; leaders: Leader[] };
 type Group = "Daily Targets" | "VARC Sectionals" | "DILR Sectionals" | "QA Sectionals" | "Full Mocks";
 
 function Summary({ title, attempts }: { title: Group; attempts: Attempt[] }) {
@@ -20,17 +23,45 @@ function Metric({ label, value }: { label: string; value: string }) {
   return <div className="min-w-20 rounded-xl bg-surface-muted px-3 py-2"><p className="font-display text-base font-bold text-foreground">{value}</p><p className="text-[11px] text-muted">{label}</p></div>;
 }
 
+function MockLeaderboard({ result }: { result: MockResult }) {
+  return <article className="rounded-2xl border border-border bg-white p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><h3 className="font-display text-base font-semibold text-foreground">{result.name}</h3><p className="mt-1 text-sm text-muted">Your score: <span className="font-semibold text-foreground">{result.score}/{result.total}</span></p></div>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-tint px-3 py-1.5 text-sm font-bold text-brand-darker"><Trophy size={15} /> Highest score: {result.leaders[0]?.score ?? "N/A"}</span>
+    </div>
+    <details className="group mt-4">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand-tint [&::-webkit-details-marker]:hidden">Top 5 scorers <ChevronDown size={14} className="transition-transform group-open:rotate-180" /></summary>
+      <div className="mt-3 overflow-hidden rounded-xl border border-border">
+        {result.leaders.length ? result.leaders.map((leader, index) => <div key={leader.userId} className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-sm last:border-b-0"><span className="min-w-0 truncate font-medium text-foreground"><span className="mr-3 inline-flex w-5 text-muted">{index + 1}</span>{leader.name}</span><span className="font-bold tabular-nums text-brand-darker">{leader.score}</span></div>) : <p className="px-4 py-3 text-sm text-muted">No scores are available for this mock yet.</p>}
+      </div>
+    </details>
+  </article>;
+}
+
 export default function PerformancePage() {
   const [user, setUser] = useState<User | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [dailyAttempts, setDailyAttempts] = useState<Attempt[]>([]);
+  const [mockResults, setMockResults] = useState<MockResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); if (!nextUser) setLoading(false); }), []);
   useEffect(() => {
     if (!user) return;
-    Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid)))])
-      .then(([mockSnapshot, dailySnapshot]) => { setAttempts(mockSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Attempt).filter((attempt) => attempt.status === "submitted")); setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt)); })
+    Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid))), getDocs(collection(db, "profiles"))])
+      .then(async ([mockSnapshot, dailySnapshot, profilesSnapshot]) => {
+        const submittedAttempts = mockSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Attempt).filter((attempt) => attempt.status === "submitted");
+        const profileNames = new Map(profilesSnapshot.docs.map((profile) => [profile.id, String(profile.data().name || profile.data().displayName || profile.data().email || "Student").trim()]));
+        const results = await Promise.all(submittedAttempts.map(async (attempt) => {
+          const mockId = String(attempt.mockId || attempt.id.replace(`${user.uid}_`, ""));
+          const [mockSnapshot, rankingsSnapshot] = await Promise.all([getDoc(doc(db, "mocks", mockId)), getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)))]);
+          const leaders = rankingsSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) / Math.max(1, Number(b.correct || 0) + Number(b.wrong || 0)) - Number(a.correct || 0) / Math.max(1, Number(a.correct || 0) + Number(a.wrong || 0)) || a.userId.localeCompare(b.userId)).slice(0, 5).map((ranking) => ({ userId: ranking.userId, name: profileNames.get(ranking.userId) || "Student", score: Number(ranking.score || 0), correct: Number(ranking.correct || 0), wrong: Number(ranking.wrong || 0) }));
+          return { id: mockId, name: String(mockSnapshot.data()?.name || "Mock test"), score: Number(attempt.score || 0), total: Number(attempt.total || 0) * 3, leaders };
+        }));
+        setAttempts(submittedAttempts);
+        setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt));
+        setMockResults(results);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user]);
@@ -42,5 +73,5 @@ export default function PerformancePage() {
   const sectional = typeIs("sectional");
   const sectionIs = (section: string) => sectional.filter((attempt) => String(attempt.section || "").toUpperCase() === section);
 
-  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p><div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div></div>;
+  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p><div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Mock test performance</h2><p className="mt-1 text-sm text-muted">See the highest score and top scorers for each mock you have completed.</p><div className="mt-4 space-y-3">{mockResults.length ? mockResults.map((result) => <MockLeaderboard key={result.id} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">Complete a mock test to see its leaderboard here.</div>}</div></section></div>;
 }
