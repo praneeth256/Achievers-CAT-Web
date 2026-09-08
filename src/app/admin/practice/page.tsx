@@ -6,7 +6,7 @@ import { CheckCircle2, ClipboardPaste, Loader2, Plus, Upload } from "lucide-reac
 import AdminGuard from "@/components/AdminGuard";
 import { db } from "@/lib/firebase/client";
 
-type PracticeQuestion = { section: "Quant" | "VARC-VA"; chapter: string; difficulty: "Easy" | "Moderate" | "Hard" | "Difficult"; question: string; options: string[]; correctOption: string; explanation?: string; published: boolean };
+type PracticeQuestion = { section: "Quant" | "VARC-VA"; chapter: string; difficulty: "Easy" | "Moderate" | "Hard" | "Difficult"; question: string; questionType?: "MCQ" | "TITA"; options: string[]; correctOption: string; correctAnswer?: string; explanation?: string; published: boolean };
 type GroupQuestion = Pick<PracticeQuestion, "question" | "options" | "correctOption" | "explanation">;
 type PracticeGroup = { section: "VARC-RC" | "DILR"; chapter: string; title: string; content: string; difficulty: "Easy" | "Moderate" | "Hard" | "Difficult"; questions: GroupQuestion[]; published: boolean };
 const emptyQuestion = (): PracticeQuestion => ({ section: "Quant", chapter: "Arithmetic", difficulty: "Moderate", question: "", options: ["", "", "", ""], correctOption: "A", explanation: "", published: true });
@@ -60,7 +60,9 @@ export function PracticeManager({ library = "practice" }: { library?: "practice"
   const update = <K extends keyof PracticeQuestion>(key: K, value: PracticeQuestion[K]) => setForm((current) => ({ ...current, [key]: value }));
 
   function validate(value: PracticeQuestion) {
-    if (!value.chapter.trim() || !value.question.trim() || value.options.length < 4 || value.options.length > 5 || value.options.some((option) => !option.trim())) throw new Error("Add a chapter, question, and four or five non-empty options.");
+    if (!value.chapter.trim() || !value.question.trim()) throw new Error("Add a chapter and question.");
+    if (value.questionType === "TITA") { if (!value.correctAnswer?.trim()) throw new Error("Add the correct TITA answer."); return; }
+    if (value.options.length < 4 || value.options.length > 5 || value.options.some((option) => !option.trim())) throw new Error("Add four or five non-empty MCQ options.");
     if (!/^[ABCDE]$/.test(value.correctOption) || value.options.length < "ABCDE".indexOf(value.correctOption) + 1) throw new Error("Correct option must match one of the supplied options (A to E).");
   }
   function validateGroup(value: PracticeGroup) {
