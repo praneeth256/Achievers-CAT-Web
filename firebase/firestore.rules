@@ -170,6 +170,17 @@ service cloud.firestore {
       allow delete: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // Feed entries are written by the acting user and are visible only to admins.
+    match /user_activities/{activityId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userName is string
+        && request.resource.data.type in ['signin', 'mock', 'practice', 'pyq', 'daily']
+        && request.resource.data.detail is string;
+      allow update, delete: if isAdmin();
+    }
+
 
     match /question_options/{optionId} {
 

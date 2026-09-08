@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase/client";
 import { calculatePercentiles, estimatePercentile, type RankingAttempt } from "@/lib/mockPercentile";
+import { logActivity } from "@/lib/firebase/activity";
 
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
 // "submitting" exists only in the running page.  It prevents an unload from
@@ -301,13 +302,16 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           setAttempt(started);
           startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
           await startWriteRef.current;
+          void logActivity(user, "mock", mock.type === "full" ? `Full Mock · ${mock.name}` : `${mock.section || "Sectional"} Mock · ${mock.name}`);
         }
         if (data.type === "submitted" && attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting") {
+          let startedWithSubmission = false;
           if (!attemptRef.current) {
             const started: SavedAttempt = { status: "in_progress" };
             attemptRef.current = started;
             setAttempt(started);
             startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
+            startedWithSubmission = true;
           }
           // The uploaded mock switches to its result screen synchronously.
           // Mark the local attempt as no longer in-progress *before* awaiting
@@ -317,6 +321,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           attemptRef.current = submitting;
           setAttempt(submitting);
           if (startWriteRef.current) await startWriteRef.current;
+          if (startedWithSubmission) void logActivity(user, "mock", mock.type === "full" ? `Full Mock · ${mock.name}` : `${mock.section || "Sectional"} Mock · ${mock.name}`);
           const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = Number(data.total || mock.questions || 0);
           const timeTakenSeconds = typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0));
           // Persist the completed score before calculating ranks. The live

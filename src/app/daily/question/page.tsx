@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
+import { logActivity } from "@/lib/firebase/activity";
 import AssetImage from "@/components/AssetImage";
 import {
   ArrowLeft,
@@ -487,6 +488,7 @@ function DailyQuestionContent() {
         );
 
         setAttempt(archivedAttempt);
+        void logActivity(user, "daily", `${sectionLabel(section)} target for ${date}`);
         setSubmitted(true);
         setStarted(false);
         setCurrentQuestion(0);
@@ -718,6 +720,7 @@ function DailyQuestionContent() {
       }
 
       setSubmitted(true);
+      void logActivity(user, "daily", `${sectionLabel(section)} target for ${date}`);
       setStarted(false);
 
       /*

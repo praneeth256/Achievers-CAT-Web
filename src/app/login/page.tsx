@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithGoogle } from "@/lib/firebase/auth";
+import { logActivity } from "@/lib/firebase/activity";
 import Logo from "@/components/Logo";
 import { Loader2 } from "lucide-react";
 import { showToast } from "@/components/Toast";
@@ -42,6 +43,7 @@ function LoginForm() {
         },
         { merge: true }
       );
+      void logActivity(user, "signin", "Signed in");
 
       const returnTo = searchParams.get("returnTo");
       const destination = returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/daily";
