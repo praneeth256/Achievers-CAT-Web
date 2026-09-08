@@ -38,7 +38,7 @@ function addAchieversBridge(html: string) {
           var candidate = candidates[index];
           if (getComputedStyle(candidate).display === 'none' || getComputedStyle(candidate).visibility === 'hidden') continue;
           var text = (candidate.textContent || '').trim();
-          var match = text.match(/(?:score|marks?)[^0-9-]*(-?[0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*([0-9]+))?/i);
+          var match = text.match(/(?:score|marks?)[^0-9-]*(-?[0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*([0-9]+))?/i) || text.match(/(-?[0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+)[\s\S]{0,80}?(?:net marks|score)/i);
           if (!match) continue;
           sent = true;
           send('submitted', { score: Number(match[1]), total: typeof QUESTIONS !== 'undefined' ? QUESTIONS.length : (match[2] ? Math.round(Number(match[2]) / 3) : 0), correct: 0, wrong: 0, answers: typeof answers !== 'undefined' ? answers : {}, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
@@ -190,6 +190,11 @@ function addAchieversBridge(html: string) {
   </script>`;
   return html
     .replace("function startExam() {", "function startExam() { window.parent.postMessage({ source: 'achievers-mock', type: 'started' }, '*');")
+    // Newer CAT-style templates persist their completed result through this
+    // function. Injecting here is deterministic: it runs with the exact
+    // scored result before the template renders its result screen.
+    .replace("function saveResult(testId,data){", "function saveResult(testId,data){ window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
+    .replace("function startExam(testId,minutes){", "function startExam(testId,minutes){ window.parent.postMessage({ source: 'achievers-mock', type: 'started' }, '*');")
     .replace("function retryExam() {", "function retryExam() { if (window.__achieversAnalysis) return;")
     .replace("</body>", `${bridge}</body>`);
 }

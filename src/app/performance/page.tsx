@@ -26,9 +26,9 @@ export default function PerformancePage() {
   const [dailyAttempts, setDailyAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); if (!nextUser) setLoading(false); }), []);
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
+    if (!user) return;
     Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid)))])
       .then(([mockSnapshot, dailySnapshot]) => { setAttempts(mockSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Attempt).filter((attempt) => attempt.status === "submitted")); setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt)); })
       .catch(console.error)
