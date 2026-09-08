@@ -10,7 +10,9 @@ import { auth, db } from "@/lib/firebase/client";
 import { calculatePercentiles, estimatePercentile, type RankingAttempt } from "@/lib/mockPercentile";
 
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
-type SavedAttempt = { status: "in_progress" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
+// "submitting" exists only in the running page.  It prevents an unload from
+// turning a completed test into a zero while its Firestore writes finish.
+type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
 type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
@@ -288,28 +290,54 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
           await startWriteRef.current;
         }
-        if (data.type === "submitted" && attemptRef.current?.status !== "submitted") {
+        if (data.type === "submitted" && attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting") {
           if (!attemptRef.current) {
             const started: SavedAttempt = { status: "in_progress" };
             attemptRef.current = started;
             setAttempt(started);
             startWriteRef.current = setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "in_progress", startedAt: serverTimestamp() });
           }
+          // The uploaded mock switches to its result screen synchronously.
+          // Mark the local attempt as no longer in-progress *before* awaiting
+          // ranking/database work, so closing that result screen neither asks
+          // for confirmation nor overwrites the real score with a zero.
+          const submitting: SavedAttempt = { ...attemptRef.current, status: "submitting" };
+          attemptRef.current = submitting;
+          setAttempt(submitting);
           if (startWriteRef.current) await startWriteRef.current;
           const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = Number(data.total || mock.questions || 0);
+          const timeTakenSeconds = typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0));
+          // Persist the completed score before calculating ranks. The live
+          // sectional list listens to this document, so it updates as soon as
+          // the result is available instead of waiting on every rank record.
+          const provisionalPercentile = estimatePercentile(score, total, mock.difficulty);
+          const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds };
+          await setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() }, { merge: true });
+          attemptRef.current = savedScore;
+          setAttempt(savedScore);
+
           const rankingSnapshot = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)));
           const rankings = rankingSnapshot.docs.map((item) => item.data() as RankingAttempt).filter((item) => item.userId !== user.uid);
           rankings.push({ userId: user.uid, score, correct, wrong });
           const percentile = calculatePercentiles(rankings, total, mock.difficulty).get(user.uid) || 0;
           await Promise.all([
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
-            setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "submitted", score, total, correct, wrong, percentile, answers: data.answers || {}, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)), submittedAt: serverTimestamp() }, { merge: true }),
+            setDoc(attemptDocument, { percentile }, { merge: true }),
           ]);
-          const submitted: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)) };
+          const submitted: SavedAttempt = { ...savedScore, percentile };
           attemptRef.current = submitted;
           setAttempt(submitted);
         }
-      } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this attempt."); }
+      } catch (error) {
+        // If saving failed, return to the protected in-progress state. This
+        // avoids silently treating an unsaved result as a completed mock.
+        if (attemptRef.current?.status === "submitting") {
+          const inProgress: SavedAttempt = { ...attemptRef.current, status: "in_progress" };
+          attemptRef.current = inProgress;
+          setAttempt(inProgress);
+        }
+        setMessage(error instanceof Error ? error.message : "Could not save this attempt.");
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
