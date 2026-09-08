@@ -13,7 +13,10 @@ type Mock = { id: string; name: string; type: "full" | "sectional"; section?: st
 type SavedAttempt = { status: "in_progress" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
 type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
 
-function addAchieversBridge(html: string) {
+function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
+  const restorePayload = savedAttempt?.status === "submitted"
+    ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0 }).replace(/<\//g, "<\\/")
+    : "null";
   const bridge = `<script>
     (function () {
       var sent = false;
@@ -169,6 +172,19 @@ function addAchieversBridge(html: string) {
           if (/start|begin|attempt/i.test(label)) send('started');
           if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }, 600);
         }, true);
+        // The parent also sends this payload by postMessage, but embedding it
+        // makes reopening analysis deterministic even if that message arrives
+        // before the uploaded mock has registered its listener.
+        if (window.__achieversRestorePayload) {
+          setTimeout(function () {
+            if (!restoreNewMockResult(window.__achieversRestorePayload) && typeof showResults === 'function') {
+              window.__achieversAnalysis = true;
+              answers = window.__achieversRestorePayload.answers || {};
+              submitted = true;
+              showResults();
+            }
+          }, 0);
+        }
         send('ready');
       });
       window.addEventListener('message', function (event) {
@@ -196,7 +212,7 @@ function addAchieversBridge(html: string) {
     .replace("function saveResult(testId,data){", "function saveResult(testId,data){ window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
     .replace("function startExam(testId,minutes){", "function startExam(testId,minutes){ window.parent.postMessage({ source: 'achievers-mock', type: 'started' }, '*');")
     .replace("function retryExam() {", "function retryExam() { if (window.__achieversAnalysis) return;")
-    .replace("</body>", `${bridge}</body>`);
+    .replace("</body>", `<script>window.__achieversRestorePayload=${restorePayload};</script>${bridge}</body>`);
 }
 
 export default function MockViewPage({ params }: { params: Promise<{ mockId: string }> }) {
@@ -243,7 +259,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
           ]);
         }
-        setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source)); setStatus("loading");
+        setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source, savedAttempt)); setStatus("loading");
       } catch (error) { setMessage(error instanceof Error ? error.message : "Could not open this mock."); setStatus("error"); }
     })();
   }, [mockId, user]);
