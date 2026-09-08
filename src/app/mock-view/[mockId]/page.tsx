@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { doc, getDoc, getDocs, query, collection, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, query, collection, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Loader2, UserRound } from "lucide-react";
 import Link from "next/link";
@@ -46,7 +46,7 @@ function addAchieversBridge(html: string) {
         }
       }
       function reportNewMockResult(savedResult) {
-        if (sent || typeof TEST_META === 'undefined' || typeof loadAllResults !== 'function') return;
+        if (sent || typeof TEST_META === 'undefined' || (!savedResult && typeof loadAllResults !== 'function')) return;
         var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
         // Sandboxed srcDoc files cannot always access localStorage. The new
         // mock hands the complete result to saveResult(), so prefer that
@@ -62,6 +62,25 @@ function addAchieversBridge(html: string) {
           answers: result.answers || {},
           secondsLeft: 0,
           timeTakenSeconds: Number(result.timeUsedSec || 0)
+        });
+      }
+      function reportNewMockState() {
+        if (sent || typeof TEST_META === 'undefined' || typeof answers === 'undefined') return;
+        var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
+        var questions = typeof currentQuestions === 'function' ? currentQuestions() : (typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId] ? QUESTION_BANK[testId] : []);
+        if (!questions || !questions.length) return;
+        var correct = 0, wrong = 0, score = 0;
+        questions.forEach(function (question, index) {
+          var answer = answers[index];
+          if (answer === undefined || answer === '') return;
+          var isCorrect = String(answer).trim() === String(question.correct).trim();
+          if (isCorrect) { correct++; score += 3; }
+          else { wrong++; if (question.qType === 'MCQ' || question.q_type === 'MCQ') score -= 1; }
+        });
+        sent = true;
+        send('submitted', {
+          score: score, total: questions.length, correct: correct, wrong: wrong, answers: answers,
+          timeTakenSeconds: typeof timerStartedAt === 'number' && timerStartedAt ? Math.max(0, Math.floor((Date.now() - timerStartedAt) / 1000)) : 0
         });
       }
       function restoreNewMockResult(data) {
@@ -96,29 +115,46 @@ function addAchieversBridge(html: string) {
           if (container) container.style.display = 'none';
         });
       }
-      document.addEventListener('DOMContentLoaded', function () {
-        // New sectional files expose a complete test-list/result application,
-        // while older files expose QUESTIONS + showResults. Hook the new
-        // app's result function without changing either uploaded source file.
-        if (typeof TEST_META !== 'undefined' && typeof showResults === 'function') {
+      function installNewMockHooks() {
+        if (typeof TEST_META === 'undefined') return false;
+        if (typeof showResults === 'function' && !showResults.__achieversHooked) {
           var originalShowResults = showResults;
           window.showResults = function () {
             var value = originalShowResults.apply(this, arguments);
             reportNewMockResult();
             return value;
           };
+          window.showResults.__achieversHooked = true;
         }
-        if (typeof TEST_META !== 'undefined' && typeof saveResult === 'function') {
+        if (typeof saveResult === 'function' && !saveResult.__achieversHooked) {
           var originalSaveResult = saveResult;
           window.saveResult = function () {
             var value = originalSaveResult.apply(this, arguments);
             reportNewMockResult(arguments[1]);
             return value;
           };
+          window.saveResult.__achieversHooked = true;
         }
+        return typeof saveResult === 'function';
+      }
+      // The supplied mock files do not all place their scripts in the same
+      // part of the document. Install immediately and keep trying briefly so
+      // the save hook is always in place before a student can submit.
+      if (!installNewMockHooks()) {
+        var hookAttempts = 0;
+        var hookTimer = setInterval(function () {
+          hookAttempts++;
+          if (installNewMockHooks() || hookAttempts >= 100) clearInterval(hookTimer);
+        }, 50);
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        // New sectional files expose a complete test-list/result application,
+        // while older files expose QUESTIONS + showResults. Hook the new
+        // app's result function without changing either uploaded source file.
+        installNewMockHooks();
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
-          if (getComputedStyle(result).display !== 'none') { reportResult(); reportNewMockResult(); reportVisibleResult(); }
+          if (getComputedStyle(result).display !== 'none') { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
         new MutationObserver(function () { reportVisibleResult(); }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
         document.addEventListener('click', function (event) {
@@ -131,7 +167,7 @@ function addAchieversBridge(html: string) {
             return;
           }
           if (/start|begin|attempt/i.test(label)) send('started');
-          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportVisibleResult(); }, 400);
+          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }, 600);
         }, true);
         send('ready');
       });
@@ -189,7 +225,20 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
         const chunks = await getDocs(query(collection(db, "mock_file_chunks"), where("mockId", "==", mockId)));
         if (chunks.empty) throw new Error("This mock file is not available.");
         const source = chunks.docs.map((item) => item.data() as { index: number; content: string }).sort((a, b) => a.index - b.index).map((item) => item.content).join("");
-        setMock(nextMock); setAttempt(attemptSnapshot.exists() ? attemptSnapshot.data() as SavedAttempt : null); setHtml(addAchieversBridge(source)); setStatus("loading");
+        let savedAttempt = attemptSnapshot.exists() ? attemptSnapshot.data() as SavedAttempt : null;
+        // An in-progress attempt belongs to a previous visit which ended
+        // without submission. A mock is single-attempt, so close it as a
+        // zero-score submission before showing the iframe again.
+        if (savedAttempt?.status === "in_progress") {
+          const total = Number(nextMock.questions || 0);
+          const percentile = estimatePercentile(0, total, nextMock.difficulty);
+          savedAttempt = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
+          await Promise.all([
+            setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: nextMock.type, section: nextMock.section || null, ...savedAttempt, submittedAt: serverTimestamp() }, { merge: true }),
+            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
+          ]);
+        }
+        setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source)); setStatus("loading");
       } catch (error) { setMessage(error instanceof Error ? error.message : "Could not open this mock."); setStatus("error"); }
     })();
   }, [mockId, user]);
@@ -199,6 +248,10 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
       if (event.source !== frameRef.current?.contentWindow || !user || !mock || !mockId) return;
       const data = event.data;
       if (data?.source !== "achievers-mock") return;
+      if (data.type === "ready") {
+        restoreAnalysis();
+        return;
+      }
       if (data.type === "back-to-list") {
         router.push(`/sectional?section=${mock.section || "VARC"}`);
         return;
@@ -229,7 +282,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           const percentile = calculatePercentiles(rankings, total, mock.difficulty).get(user.uid) || 0;
           await Promise.all([
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
-            updateDoc(attemptDocument, { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers || {}, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)), submittedAt: serverTimestamp() }),
+            setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, status: "submitted", score, total, correct, wrong, percentile, answers: data.answers || {}, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)), submittedAt: serverTimestamp() }, { merge: true }),
           ]);
           const submitted: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile, answers: data.answers, timeTakenSeconds: typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0)) };
           attemptRef.current = submitted;
@@ -247,16 +300,19 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
       const currentAttempt = attemptRef.current;
       const currentMock = mockRef.current;
       if (currentAttempt?.status !== "in_progress" || !currentMock) return;
-      void updateDoc(doc(db, "attempts", `${user.uid}_${mockId}`), {
-        status: "submitted",
-        score: 0,
-        total: Number(currentMock.questions || 0),
-        correct: 0,
-        wrong: 0,
-        answers: {},
-        timeTakenSeconds: 0,
-        submittedAt: serverTimestamp(),
-      });
+      const total = Number(currentMock.questions || 0);
+      const percentile = estimatePercentile(0, total, currentMock.difficulty);
+      // Change the local state first so a simultaneous unload cannot let a
+      // late submission overwrite this final zero-score attempt.
+      const abandoned: SavedAttempt = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
+      attemptRef.current = abandoned;
+      setAttempt(abandoned);
+      void Promise.all([
+        // setDoc + merge also succeeds if the initial "started" write has
+        // not reached Firestore before the tab is closed.
+        setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: currentMock.type, section: currentMock.section || null, ...abandoned, submittedAt: serverTimestamp() }, { merge: true }),
+        setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
+      ]);
     };
     window.addEventListener("pagehide", recordAbandonedAttempt);
     return () => window.removeEventListener("pagehide", recordAbandonedAttempt);
@@ -273,7 +329,8 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
   }, []);
 
   function restoreAnalysis() {
-    if (attempt?.status === "submitted" && attempt.answers) frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: attempt.answers, score: attempt.score, timeTakenSeconds: attempt.timeTakenSeconds }, "*");
+    const savedAttempt = attemptRef.current;
+    if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, timeTakenSeconds: savedAttempt.timeTakenSeconds }, "*");
   }
 
   if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Sign in to open this mock</h1><Link href={`/login?returnTo=${encodeURIComponent(`/mock-view/${mockId || ""}`)}`} className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white">Continue with Google</Link></div>;
