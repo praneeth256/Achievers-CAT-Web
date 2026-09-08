@@ -102,14 +102,6 @@ function AdminDashboardContent() {
         ))}
       </div>
 
-      <section className="mt-8 rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center gap-2"><Activity size={18} className="text-brand" /><div><h2 className="font-display text-lg font-semibold text-foreground">User activity</h2><p className="mt-0.5 text-sm text-muted">Latest student activity, updated live.</p></div></div>
-        <div className="mt-5 divide-y divide-border">
-          {activities.map((activity) => <div key={activity.id} className="flex items-start justify-between gap-4 py-3.5 first:pt-0 last:pb-0"><p className="min-w-0 text-sm font-medium text-foreground">{activityMessage(activity)}</p><time className="shrink-0 text-xs text-muted" dateTime={activity.createdAt?.toDate?.()?.toISOString()}>{activityTime(activity, now)}</time></div>)}
-          {!activities.length && <p className="py-5 text-center text-sm text-muted">No student activity yet. New sign-ins and attempts will appear here.</p>}
-        </div>
-      </section>
-
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sections.map((s) => (
           <Link
@@ -126,6 +118,14 @@ function AdminDashboardContent() {
           </Link>
         ))}
       </div>
+
+      <section className="mt-8 rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2"><Activity size={18} className="text-brand" /><div><h2 className="font-display text-lg font-semibold text-foreground">User activity</h2><p className="mt-0.5 text-sm text-muted">Latest student activity, updated live.</p></div></div>
+        <div className="mt-5 max-h-96 divide-y divide-border overflow-y-auto pr-2">
+          {activities.map((activity) => <div key={activity.id} className="flex items-start justify-between gap-4 py-3.5 first:pt-0 last:pb-0"><p className="min-w-0 text-sm font-medium text-foreground">{activityMessage(activity)}</p><time className="shrink-0 text-xs text-muted" dateTime={activity.createdAt?.toDate?.()?.toISOString()}>{activityTime(activity, now)}</time></div>)}
+          {!activities.length && <p className="py-5 text-center text-sm text-muted">No student activity yet. New sign-ins and attempts will appear here.</p>}
+        </div>
+      </section>
     </div>
   );
 }
