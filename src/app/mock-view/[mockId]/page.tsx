@@ -19,7 +19,10 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const restorePayload = savedAttempt?.status === "submitted"
     ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0 }).replace(/<\//g, "<\\/")
     : "null";
-  const bridge = `<script>
+  // Keep the regular-expression escapes intact in the script injected into
+  // the uploaded HTML. A normal template literal consumes escapes such as
+  // `\\s` and `\\/`, producing invalid JavaScript inside the iframe.
+  const bridge = String.raw`<script>
     (function () {
       var sent = false;
       function send(type, extra) { window.parent.postMessage(Object.assign({ source: 'achievers-mock', type: type }, extra || {}), '*'); }
@@ -211,7 +214,11 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
     // Newer CAT-style templates persist their completed result through this
     // function. Injecting here is deterministic: it runs with the exact
     // scored result before the template renders its result screen.
-    .replace("function saveResult(testId,data){", "function saveResult(testId,data){ window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
+    // Uploaded mock files are authored independently and may contain spaces
+    // or line breaks in this function declaration. Match the declaration,
+    // not one exact formatting style, so every CAT-style template reports its
+    // result before displaying its result screen.
+    .replace(/function\s+saveResult\s*\(\s*testId\s*,\s*data\s*\)\s*\{/, "function saveResult(testId,data){ window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
     .replace("function startExam(testId,minutes){", "function startExam(testId,minutes){ window.parent.postMessage({ source: 'achievers-mock', type: 'started' }, '*');")
     .replace("function retryExam() {", "function retryExam() { if (window.__achieversAnalysis) return;")
     .replace("</body>", `<script>window.__achieversRestorePayload=${restorePayload};</script>${bridge}</body>`);
@@ -268,9 +275,13 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
 
   useEffect(() => {
     const onMessage = async (event: MessageEvent<ResultMessage>) => {
-      if (event.source !== frameRef.current?.contentWindow || !user || !mock || !mockId) return;
       const data = event.data;
       if (data?.source !== "achievers-mock") return;
+      // srcDoc runs in a sandboxed (opaque-origin) iframe. Some browsers do
+      // not preserve WindowProxy identity consistently for it, so comparing
+      // event.source with iframe.contentWindow can discard the result event.
+      // The bridge's explicit source tag is the stable contract here.
+      if (!user || !mock || !mockId) return;
       if (data.type === "ready") {
         restoreAnalysis();
         return;
