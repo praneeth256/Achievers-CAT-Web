@@ -21,7 +21,7 @@ export default function FullMocksPage() {
       const next: Record<string, MockSummary["attempted"]> = {};
       snapshot.docs.forEach((item) => {
         const value = item.data();
-        if (value.status !== "submitted" || value.type !== "full" || !value.mockId) return;
+        if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "full" || !value.mockId) return;
         const submittedAt = value.submittedAt?.toDate?.();
         next[String(value.mockId)] = { score: Number(value.score || 0), total: Number(value.total || 0), correct: Number(value.correct || 0), wrong: Number(value.wrong || 0), percentile: typeof value.percentile === "number" ? value.percentile : undefined, attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now" };
       });

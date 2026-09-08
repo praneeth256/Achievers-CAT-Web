@@ -30,7 +30,7 @@ export default function SectionalTabs() {
       const firstSubmittedAt: Record<string, number> = {};
       snapshot.docs.forEach((item) => {
         const value = item.data();
-        if (value.status !== "submitted" || value.type !== "sectional" || !value.mockId) return;
+        if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "sectional" || !value.mockId) return;
         const submittedAt = value.submittedAt?.toDate?.() || value.startedAt?.toDate?.();
         const mockId = String(value.mockId);
         const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
@@ -70,7 +70,7 @@ export default function SectionalTabs() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <h1 className="font-display text-[28px] font-bold text-foreground">Sectional Mocks</h1>
-      <p className="mt-2 text-[14.5px] text-muted">Focused practice for VARC, DILR and QA. Every uploaded HTML mock opens in a new tab.</p>
+      <p className="mt-2 text-[14.5px] text-muted">Focused practice for VARC, DILR and QA. Scores update here live after submission; completed mocks reopen in analysis mode.</p>
 
       <div className="mt-6 flex gap-2 overflow-x-auto rounded-full border border-border bg-surface-muted p-1">
         {sections.map((s) => (
