@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, doc, getDoc, limit, onSnapshot, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { ArrowRight, BookOpenCheck, Brain, CheckCircle2, Flame, Loader2, Network, Target } from "lucide-react";
 import { auth, db } from "@/lib/firebase/client";
 
@@ -51,25 +51,29 @@ export default function DailyTargetsPage() {
   const today = useMemo(() => todayIST(), []);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
-  useEffect(() => onSnapshot(query(collection(db, "daily_packages"), where("published", "==", true), limit(60)), (snapshot) => {
-    const availablePackages = snapshot.docs
-      .map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)
-      .sort((a, b) => (b.date || b.id).localeCompare(a.date || a.id));
-    setPackages(availablePackages);
-    setLoading(false);
-  }, (error) => { console.error("Could not load daily targets:", error); setLoading(false); }), []);
   useEffect(() => {
-    if (!user || !packages.length) return;
+    // This catalogue does not need live updates. A bounded one-time read is
+    // cheaper than keeping a listener open for every visitor.
+    getDocs(query(collection(db, "daily_packages"), where("published", "==", true), limit(60)))
+      .then((snapshot) => setPackages(snapshot.docs
+        .map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)
+        .sort((a, b) => (b.date || b.id).localeCompare(a.date || a.id))))
+      .catch((error) => console.error("Could not load daily targets:", error))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => {
+    if (!user) return;
     let active = true;
-    Promise.all(packages.flatMap((item) => sectionsFor(item).map(async (section) => {
-      const date = item.date || item.id;
-      const snapshot = await getDoc(doc(db, "daily_attempts", date + "_" + section.key + "_" + user.uid));
-      return snapshot.exists() ? [date + "_" + section.key, snapshot.data() as DailyAttempt] as const : null;
-    }))).then((results) => {
-      if (active) setAttempts(new Map(results.filter((value): value is readonly [string, DailyAttempt] => Boolean(value))));
+    // One user-scoped query replaces up to three document reads per displayed
+    // day, while preserving the same attempted/result UI.
+    getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid))).then((snapshot) => {
+      if (active) setAttempts(new Map(snapshot.docs.map((item) => {
+        const value = item.data() as DailyAttempt & { date?: string; section?: string };
+        return [`${value.date}_${value.section}`, value] as const;
+      })));
     }).catch((error) => console.error("Could not load daily target results:", error));
     return () => { active = false; };
-  }, [packages, user]);
+  }, [user]);
 
   const todayPackage = packages.find((item) => (item.date || item.id) === today);
   const previousPackages = packages.filter((item) => (item.date || item.id) !== today);

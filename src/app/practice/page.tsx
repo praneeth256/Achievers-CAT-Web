@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { BookOpenCheck, ChevronLeft, ChevronRight, Circle, Loader2, RotateCcw } from "lucide-react";
 import { auth, db } from "@/lib/firebase/client";
+import { logActivity } from "@/lib/firebase/activity";
 
 type Difficulty = "Easy" | "Moderate" | "Hard" | "Difficult";
 type Section = "Quant" | "VARC" | "DILR";
@@ -29,6 +30,7 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const activityLogged = useRef(false);
 
   useEffect(() => {
     setUser(auth.currentUser); setReady(true);
@@ -71,7 +73,15 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
     const previous = answers[current.id];
     setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: value }));
     setSaving(true);
-    try { await setDoc(doc(db, attemptTable, `${user.uid}_${current.id}`), { userId: user.uid, questionId: current.id, section: current.section, chapter: current.chapter, selectedOption: value }, { merge: true }); }
+    try {
+      await setDoc(doc(db, attemptTable, `${user.uid}_${current.id}`), { userId: user.uid, questionId: current.id, section: current.section, chapter: current.chapter, selectedOption: value }, { merge: true });
+      // Record at most one feed row for this practice visit, rather than one
+      // write per question answer.
+      if (!activityLogged.current) {
+        activityLogged.current = true;
+        void logActivity(user, isPyq ? "pyq" : "practice", `${current.section} · ${current.chapter}`);
+      }
+    }
     catch {
       setAnswers((currentAnswers) => { const next = { ...currentAnswers }; if (previous) next[current.id] = previous; else delete next[current.id]; return next; });
       setError("Could not save this answer.");

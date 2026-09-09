@@ -197,7 +197,10 @@ service cloud.firestore {
     match /daily_packages/{date} {
 
       allow read:
-        if (signedIn() && resource.data.published == true) || isAdmin();
+        // Daily targets are a public catalogue.  A guest can see what is
+        // available, but the question and attempt collections below still
+        // require authentication, so starting a target safely leads to login.
+        if resource.data.published == true || isAdmin();
 
       allow create, update, delete:
         if isAdmin();

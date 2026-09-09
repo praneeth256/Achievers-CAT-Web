@@ -52,7 +52,9 @@ export default function PerformancePage() {
     Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid)))])
       .then(async ([mockSnapshot, dailySnapshot]) => {
         const submittedAttempts = mockSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Attempt).filter((attempt) => attempt.status === "submitted");
-        const results = await Promise.all(submittedAttempts.map(async (attempt) => {
+        // A deleted/draft mock or a temporarily unavailable leaderboard must
+        // not hide all of the student's own performance summaries.
+        const resultSettlements = await Promise.allSettled(submittedAttempts.map(async (attempt) => {
           const mockId = String(attempt.mockId || attempt.id.replace(`${user.uid}_`, ""));
           const [mockSnapshot, rankingsSnapshot] = await Promise.all([getDoc(doc(db, "mocks", mockId)), getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId), orderBy("score", "desc"), limit(5)))]);
           const leaders = rankingsSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) - Number(a.correct || 0) || a.userId.localeCompare(b.userId)).map((ranking) => ({ userId: ranking.userId, name: ranking.displayName || "Student", score: Number(ranking.score || 0), correct: Number(ranking.correct || 0), wrong: Number(ranking.wrong || 0) }));
@@ -60,7 +62,7 @@ export default function PerformancePage() {
         }));
         setAttempts(submittedAttempts);
         setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt));
-        setMockResults(results);
+        setMockResults(resultSettlements.flatMap((result) => result.status === "fulfilled" ? [result.value] : []));
       })
       .catch((loadError) => { console.error(loadError); setError("Could not load your performance right now. Please try again."); })
       .finally(() => setLoading(false));

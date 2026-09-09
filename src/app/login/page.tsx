@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { signInWithGoogle } from "@/lib/firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { logActivity } from "@/lib/firebase/activity";
 import Logo from "@/components/Logo";
 import { Loader2 } from "lucide-react";
 
@@ -30,6 +31,7 @@ function LoginForm() {
         photoURL: user.photoURL || "",
         updatedAt: serverTimestamp(),
       }, { merge: true });
+      void logActivity(user, "signin", "Signed in");
       window.location.assign(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");

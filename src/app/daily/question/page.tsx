@@ -5,6 +5,7 @@ import type { User } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
+import { logActivity } from "@/lib/firebase/activity";
 import AssetImage from "@/components/AssetImage";
 import {
   ArrowLeft,
@@ -419,6 +420,7 @@ function DailyQuestionContent() {
 
       setSubmitted(true);
       setStarted(false);
+      void logActivity(user, "daily", `${sectionLabel(section)} · ${date}`);
 
       /*
        * After submitting, take the student to
