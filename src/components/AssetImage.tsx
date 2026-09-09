@@ -7,6 +7,10 @@ export default function AssetImage({ assetId, alt }: { assetId: string; alt: str
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
+    if (assetId.startsWith("data:") || assetId.startsWith("https://")) {
+      setSrc(assetId);
+      return () => { alive = false; };
+    }
     getQuestionAsset(assetId).then((asset) => {
       if (alive) setSrc(asset?.dataUrl || null);
     });

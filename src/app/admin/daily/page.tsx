@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import AdminGuard from "@/components/AdminGuard";
 import MediaInput from "@/components/MediaInput";
 import type { MediaValue } from "@/lib/firebase/media";
-import { uploadQuestionImage } from "@/lib/firebase/media";
+import { createClient } from "@/lib/supabase/client";
 import { showToast } from "@/components/Toast";
 import Link from "next/link";
 import {
@@ -65,7 +63,7 @@ type DailyPackage = {
 const QUANT_LIMIT = 5;
 const RC_LIMIT = 4;
 const VA_LIMIT = 5;
-const DILR_LIMIT = 5;
+const DILR_LIMIT = 4;
 
 function getVarcLimit(type: "RC" | "VA") {
   return type === "RC" ? RC_LIMIT : VA_LIMIT;
@@ -556,49 +554,22 @@ function DailyEditor() {
 
     setLoading(true);
 
-    getDoc(
-      doc(
-        db,
-        "daily_packages",
-        date
-      )
-    )
-
-      .then((snap) => {
-
+    void (async () => {
+      try {
+        const { data: packageRow, error } = await createClient()
+          .from("daily_packages")
+          .select("published, quant, varc, dilr")
+          .eq("date", date)
+          .maybeSingle();
+        if (error) throw error;
         if (!alive) return;
-
-        if (snap.exists()) {
-
-          setData(
-            normalizePackage(
-              date,
-              snap.data()
-            )
-          );
-
-        } else {
-
-          setData(
-            emptyPackage(date)
-          );
-        }
-      })
-
-      .catch((error) => {
-
-        setMessage(
-          error.message ||
-          "Could not load this date."
-        );
-      })
-
-      .finally(() => {
-
-        if (alive) {
-          setLoading(false);
-        }
-      });
+        setData(packageRow ? normalizePackage(date, packageRow) : emptyPackage(date));
+      } catch (error) {
+        if (alive) setMessage(error instanceof Error ? error.message : "Could not load this date.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
 
     return () => {
       alive = false;
@@ -612,8 +583,7 @@ function DailyEditor() {
   // --------------------------------------------------
 
   async function resolveMedia(
-    media: MediaValue,
-    assetId: string
+    media: MediaValue
   ): Promise<MediaValue> {
 
     if (media.type !== "image") {
@@ -625,17 +595,13 @@ function DailyEditor() {
     }
 
     if (media.file) {
-
-      const id =
-        await uploadQuestionImage(
-          assetId,
-          media.file
-        );
-
-      return {
-        type: "image",
-        value: id,
-      };
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Could not read image."));
+        reader.readAsDataURL(media.file!);
+      });
+      return { type: "image", value: dataUrl };
     }
 
     return {
@@ -650,18 +616,13 @@ function DailyEditor() {
   // --------------------------------------------------
 
   async function resolveMCQ(
-    q: MCQ,
-    id: string
+    q: MCQ
   ): Promise<MCQ> {
 
     return {
       title: q.title,
 
-      question:
-        await resolveMedia(
-          q.question,
-          `${id}-question`
-        ),
+      question: await resolveMedia(q.question),
 
       options:
         await Promise.all(
@@ -669,11 +630,7 @@ function DailyEditor() {
             async (o) => ({
               label: o.label,
 
-              content:
-                await resolveMedia(
-                  o.content,
-                  `${id}-option-${o.label}`
-                ),
+              content: await resolveMedia(o.content),
             })
           )
         ),
@@ -681,17 +638,9 @@ function DailyEditor() {
       correctOption:
         q.correctOption,
 
-      solution:
-        await resolveMedia(
-          q.solution,
-          `${id}-solution`
-        ),
+      solution: await resolveMedia(q.solution),
 
-      explanation:
-        await resolveMedia(
-          q.explanation,
-          `${id}-explanation`
-        ),
+      explanation: await resolveMedia(q.explanation),
     };
   }
 
@@ -754,10 +703,7 @@ function DailyEditor() {
         await Promise.all(
           data.quant.map(
             (q, i) =>
-              resolveMCQ(
-                q,
-                `${date}-quant-${i + 1}`
-              )
+              resolveMCQ(q)
           )
         );
 
@@ -766,10 +712,7 @@ function DailyEditor() {
         await Promise.all(
           data.varc.questions.map(
             (q, i) =>
-              resolveMCQ(
-                q,
-                `${date}-varc-${i + 1}`
-              )
+              resolveMCQ(q)
           )
         );
 
@@ -778,73 +721,29 @@ function DailyEditor() {
         await Promise.all(
           data.dilr.questions.map(
             (q, i) =>
-              resolveMCQ(
-                q,
-                `${date}-dilr-${i + 1}`
-              )
+              resolveMCQ(q)
           )
         );
 
 
       const varcPassage =
-        await resolveMedia(
-          data.varc.passage,
-          `${date}-varc-passage`
-        );
+        await resolveMedia(data.varc.passage);
 
 
       const dilrSet =
-        await resolveMedia(
-          data.dilr.set,
-          `${date}-dilr-set`
-        );
+        await resolveMedia(data.dilr.set);
 
 
       // ----------------------------------------------
-      // SAVE FIRESTORE
-      // ----------------------------------------------
-
-      await setDoc(
-        doc(
-          db,
-          "daily_packages",
-          date
-        ),
-        {
-          date,
-
-          published:
-            data.published,
-
-          quant,
-
-          varc: {
-            ...data.varc,
-
-            passage:
-              varcPassage,
-
-            questions:
-              varcQuestions,
-          },
-
-          dilr: {
-            ...data.dilr,
-
-            set:
-              dilrSet,
-
-            questions:
-              dilrQuestions,
-          },
-
-          updatedAt:
-            serverTimestamp(),
-        },
-        {
-          merge: true,
-        }
-      );
+      const { error } = await createClient().from("daily_packages").upsert({
+        id: date,
+        date,
+        published: data.published,
+        quant,
+        varc: { ...data.varc, passage: varcPassage, questions: varcQuestions },
+        dilr: { ...data.dilr, set: dilrSet, questions: dilrQuestions },
+      }, { onConflict: "date" });
+      if (error) throw error;
 
       lastSavedSnapshot.current = JSON.stringify(data);
 
