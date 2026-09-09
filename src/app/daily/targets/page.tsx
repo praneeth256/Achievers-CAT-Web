@@ -42,6 +42,7 @@ function TargetSections({ item, user, attempted }: { item: DailyPackage; user: U
 
 export default function DailyTargetsPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [packages, setPackages] = useState<DailyPackage[]>([]);
   const [attempts, setAttempts] = useState<Map<string, DailyAttempt>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -50,17 +51,22 @@ export default function DailyTargetsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const today = useMemo(() => todayIST(), []);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); setAuthReady(true); }), []);
   useEffect(() => {
-    // This catalogue does not need live updates. A bounded one-time read is
-    // cheaper than keeping a listener open for every visitor.
-    getDocs(query(collection(db, "daily_packages"), where("published", "==", true), limit(60)))
+    if (!authReady) return;
+    // Signed-in students receive the saved daily list; guests receive only
+    // packages explicitly published for public browsing. This is one bounded
+    // read after auth resolves, rather than loading both lists.
+    const packageQuery = user
+      ? query(collection(db, "daily_packages"), limit(60))
+      : query(collection(db, "daily_packages"), where("published", "==", true), limit(60));
+    getDocs(packageQuery)
       .then((snapshot) => setPackages(snapshot.docs
         .map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)
         .sort((a, b) => (b.date || b.id).localeCompare(a.date || a.id))))
       .catch((error) => console.error("Could not load daily targets:", error))
       .finally(() => setLoading(false));
-  }, []);
+  }, [authReady, user]);
   useEffect(() => {
     if (!user) return;
     let active = true;

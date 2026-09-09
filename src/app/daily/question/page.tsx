@@ -503,7 +503,7 @@ function DailyQuestionContent() {
         </h1>
 
         <Link
-          href="/login"
+          href={`/login?returnTo=${encodeURIComponent(`/daily/question?section=${section}&date=${date}`)}`}
           className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white"
         >
           Continue with Google
