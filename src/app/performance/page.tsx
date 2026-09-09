@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { ChevronDown, Loader2, Trophy } from "lucide-react";
 import Link from "next/link";
 import { auth, db } from "@/lib/firebase/client";
 
 type Attempt = { id: string; mockId?: string; type?: string; section?: string; status?: string; score?: number; total?: number; correct?: number; wrong?: number };
-type Ranking = { userId: string; score?: number; correct?: number; wrong?: number };
+type Ranking = { userId: string; displayName?: string; score?: number; correct?: number; wrong?: number };
 type Leader = { userId: string; name: string; score: number; correct: number; wrong: number };
 type MockResult = { id: string; name: string; score: number; total: number; leaders: Leader[] };
 type Group = "Daily Targets" | "VARC Sectionals" | "DILR Sectionals" | "QA Sectionals" | "Full Mocks";
@@ -44,25 +44,25 @@ export default function PerformancePage() {
   const [dailyAttempts, setDailyAttempts] = useState<Attempt[]>([]);
   const [mockResults, setMockResults] = useState<MockResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); if (!nextUser) setLoading(false); }), []);
   useEffect(() => {
     if (!user) return;
-    Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid))), getDocs(collection(db, "profiles"))])
-      .then(async ([mockSnapshot, dailySnapshot, profilesSnapshot]) => {
+    Promise.all([getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid))), getDocs(query(collection(db, "daily_attempts"), where("userId", "==", user.uid)))])
+      .then(async ([mockSnapshot, dailySnapshot]) => {
         const submittedAttempts = mockSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Attempt).filter((attempt) => attempt.status === "submitted");
-        const profileNames = new Map(profilesSnapshot.docs.map((profile) => [profile.id, String(profile.data().name || profile.data().displayName || profile.data().email || "Student").trim()]));
         const results = await Promise.all(submittedAttempts.map(async (attempt) => {
           const mockId = String(attempt.mockId || attempt.id.replace(`${user.uid}_`, ""));
-          const [mockSnapshot, rankingsSnapshot] = await Promise.all([getDoc(doc(db, "mocks", mockId)), getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)))]);
-          const leaders = rankingsSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) / Math.max(1, Number(b.correct || 0) + Number(b.wrong || 0)) - Number(a.correct || 0) / Math.max(1, Number(a.correct || 0) + Number(a.wrong || 0)) || a.userId.localeCompare(b.userId)).slice(0, 5).map((ranking) => ({ userId: ranking.userId, name: profileNames.get(ranking.userId) || "Student", score: Number(ranking.score || 0), correct: Number(ranking.correct || 0), wrong: Number(ranking.wrong || 0) }));
+          const [mockSnapshot, rankingsSnapshot] = await Promise.all([getDoc(doc(db, "mocks", mockId)), getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId), orderBy("score", "desc"), limit(5)))]);
+          const leaders = rankingsSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) - Number(a.correct || 0) || a.userId.localeCompare(b.userId)).map((ranking) => ({ userId: ranking.userId, name: ranking.displayName || "Student", score: Number(ranking.score || 0), correct: Number(ranking.correct || 0), wrong: Number(ranking.wrong || 0) }));
           return { id: mockId, name: String(mockSnapshot.data()?.name || "Mock test"), score: Number(attempt.score || 0), total: Number(attempt.total || 0) * 3, leaders };
         }));
         setAttempts(submittedAttempts);
         setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt));
         setMockResults(results);
       })
-      .catch(console.error)
+      .catch((loadError) => { console.error(loadError); setError("Could not load your performance right now. Please try again."); })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -73,5 +73,5 @@ export default function PerformancePage() {
   const sectional = typeIs("sectional");
   const sectionIs = (section: string) => sectional.filter((attempt) => String(attempt.section || "").toUpperCase() === section);
 
-  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p><div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Mock test performance</h2><p className="mt-1 text-sm text-muted">See the highest score and top scorers for each mock you have completed.</p><div className="mt-4 space-y-3">{mockResults.length ? mockResults.map((result) => <MockLeaderboard key={result.id} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">Complete a mock test to see its leaderboard here.</div>}</div></section></div>;
+  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p>{error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-danger">{error}</p>}<div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Mock test performance</h2><p className="mt-1 text-sm text-muted">See the highest score and top scorers for each mock you have completed.</p><div className="mt-4 space-y-3">{mockResults.length ? mockResults.map((result) => <MockLeaderboard key={result.id} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">Complete a mock test to see its leaderboard here.</div>}</div></section></div>;
 }

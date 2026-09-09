@@ -91,6 +91,7 @@ const nav = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -218,26 +219,16 @@ export default function Header() {
                 key={item.label}
                 className="group relative"
               >
-                <Link
-                  href={item.href}
-                  className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
-                >
-                  {item.free && <span className="absolute -right-1 -top-1 animate-pulse rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm shadow-brand/40">Free</span>}
-                  {item.label}
+                {item.label === "Practice" ? <button type="button" onClick={() => setPracticeOpen((value) => !value)} aria-expanded={practiceOpen} className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker">{item.free && <span className="absolute -right-1 -top-1 animate-pulse rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm shadow-brand/40">Free</span>}{item.label}<ChevronDown size={14} className={`text-muted transition ${practiceOpen ? "rotate-180" : ""}`} /></button> : <Link href={item.href} className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker">{item.free && <span className="absolute -right-1 -top-1 animate-pulse rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-white shadow-sm shadow-brand/40">Free</span>}{item.label}<ChevronDown size={14} className="text-muted transition group-hover:rotate-180" /></Link>}
 
-                  <ChevronDown
-                    size={14}
-                    className="text-muted transition group-hover:rotate-180"
-                  />
-                </Link>
-
-                <div className="invisible absolute left-0 top-full pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100">
+                <div className={`${item.label === "Practice" ? (practiceOpen ? "visible opacity-100" : "invisible opacity-0") : "invisible opacity-0 group-hover:visible group-hover:opacity-100"} absolute left-0 top-full pt-2 transition`}>
                   <div className="min-w-[220px] rounded-xl border border-border bg-white p-1.5 shadow-lg shadow-black/5">
 
                     {item.children.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
+                        onClick={() => setPracticeOpen(false)}
                         className="block rounded-lg px-3 py-2.5 text-[14px] text-foreground/80 transition hover:bg-brand-tint hover:text-brand-darker"
                       >
                         {child.label}
@@ -405,24 +396,17 @@ export default function Header() {
                 className="py-1.5"
               >
                 {/* MAIN ITEM */}
-                <Link
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between rounded-lg px-2 py-2 text-[15px] font-medium text-foreground"
-                >
-                  {item.label}
-                  {item.free && <span className="animate-pulse rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-brand-darker">Free</span>}
-                </Link>
+                {item.label === "Practice" ? <button type="button" onClick={() => setPracticeOpen((value) => !value)} aria-expanded={practiceOpen} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-[15px] font-medium text-foreground">{item.label}{item.free && <span className="animate-pulse rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-brand-darker">Free</span>}</button> : <Link href={item.href} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-lg px-2 py-2 text-[15px] font-medium text-foreground">{item.label}{item.free && <span className="animate-pulse rounded-full bg-brand-tint px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-brand-darker">Free</span>}</Link>}
 
                 {/* SUB ITEMS */}
-                {item.children && (
+                {item.children && (item.label !== "Practice" || practiceOpen) && (
                   <div className="ml-3 flex flex-col border-l border-border pl-3">
 
                     {item.children.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
-                        onClick={() => setOpen(false)}
+                        onClick={() => { setOpen(false); setPracticeOpen(false); }}
                         className="rounded-lg px-2 py-2 text-[14px] text-muted transition hover:bg-brand-tint hover:text-brand-darker"
                       >
                         {child.label}

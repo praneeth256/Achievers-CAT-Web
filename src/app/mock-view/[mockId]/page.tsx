@@ -267,7 +267,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           savedAttempt = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
           await Promise.all([
             setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: nextMock.type, section: nextMock.section || null, ...savedAttempt, submittedAt: serverTimestamp() }, { merge: true }),
-            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
+            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
           ]);
         }
         setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source, savedAttempt)); setStatus("loading");
@@ -338,7 +338,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           rankings.push({ userId: user.uid, score, correct, wrong });
           const percentile = calculatePercentiles(rankings, total, mock.difficulty).get(user.uid) || 0;
           await Promise.all([
-            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
+            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
             setDoc(attemptDocument, { percentile }, { merge: true }),
           ]);
           const submitted: SavedAttempt = { ...savedScore, percentile };
@@ -377,7 +377,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
         // setDoc + merge also succeeds if the initial "started" write has
         // not reached Firestore before the tab is closed.
         setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: currentMock.type, section: currentMock.section || null, ...abandoned, submittedAt: serverTimestamp() }, { merge: true }),
-        setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
+        setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
       ]);
     };
     window.addEventListener("pagehide", recordAbandonedAttempt);

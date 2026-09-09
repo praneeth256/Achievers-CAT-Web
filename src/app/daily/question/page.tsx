@@ -19,7 +19,6 @@ import {
   Clock3,
   Loader2,
   Trophy,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -144,7 +143,6 @@ function DailyQuestionContent() {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [statsCount, setStatsCount] = useState(0);
 
   /*
    * Current question being displayed.
@@ -177,7 +175,6 @@ function DailyQuestionContent() {
     setStarted(false);
     setSubmitted(false);
     setSaving(false);
-    setStatsCount(0);
     setCurrentQuestion(0);
   }, [section, date]);
 
@@ -264,24 +261,6 @@ function DailyQuestionContent() {
           setCurrentQuestion(0);
         }
 
-        // The archive is intentionally separate from today's live activity.
-        // Do not read historical counters: this prevents quota-heavy retries
-        // and ensures old attempts cannot affect the current leaderboard.
-        if (date !== todayIST()) return;
-
-        const statSnap = await getDoc(
-          doc(
-            db,
-            "daily_section_stats",
-            `${date}_${section}`
-          )
-        );
-
-        if (!cancelled && statSnap.exists()) {
-          setStatsCount(
-            Number(statSnap.data().count || 0)
-          );
-        }
       } catch (error) {
         console.error(
           "Could not load daily practice:",
@@ -435,9 +414,6 @@ function DailyQuestionContent() {
     const attemptId =
       `${date}_${section}_${user.uid}`;
 
-    const statId =
-      `${date}_${section}`;
-
     /*
      * Correct leaderboard structure:
      *
@@ -504,12 +480,6 @@ function DailyQuestionContent() {
             attemptId
           );
 
-          const statRef = doc(
-            db,
-            "daily_section_stats",
-            statId
-          );
-
           const streakRef = doc(
             db,
             "user_streaks",
@@ -533,21 +503,9 @@ function DailyQuestionContent() {
            * through the Firestore update rule.
            */
 
-          const statSnap =
-            await transaction.get(
-              statRef
-            );
-
           const streakSnap = updateStreak
             ? await transaction.get(streakRef)
             : null;
-
-          const currentCount =
-            statSnap.exists()
-              ? Number(
-                  statSnap.data().count || 0
-                )
-              : 0;
 
           /*
            * DAILY ATTEMPT
@@ -579,23 +537,6 @@ function DailyQuestionContent() {
               submittedAt:
                 serverTimestamp(),
             }
-          );
-
-          /*
-           * DAILY SECTION COUNTER
-           */
-
-          transaction.set(
-            statRef,
-            {
-              date,
-              section,
-              count:
-                currentCount + 1,
-              updatedAt:
-                serverTimestamp(),
-            },
-            { merge: true }
           );
 
           /*
@@ -679,45 +620,7 @@ function DailyQuestionContent() {
         }
       );
 
-      /*
-       * Reload saved attempt.
-       */
-
-      const savedAttempt =
-        await getDoc(
-          doc(
-            db,
-            "daily_attempts",
-            attemptId
-          )
-        );
-
-      if (savedAttempt.exists()) {
-        setAttempt(
-          savedAttempt.data()
-        );
-      }
-
-      /*
-       * Reload live attempt count.
-       */
-
-      const statSnap =
-        await getDoc(
-          doc(
-            db,
-            "daily_section_stats",
-            statId
-          )
-        );
-
-      if (statSnap.exists()) {
-        setStatsCount(
-          Number(
-            statSnap.data().count || 0
-          )
-        );
-      }
+      setAttempt({ score, correct, wrong, total, answers });
 
       setSubmitted(true);
       void logActivity(user, "daily", `${sectionLabel(section)} target for ${date}`);
@@ -734,8 +637,13 @@ function DailyQuestionContent() {
         error
       );
 
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "";
       alert(
-        error instanceof Error
+        code === "resource-exhausted"
+          ? "Firebase quota has been reached. This submission could not be saved yet. Please try again after the quota resets or increase the Firebase plan."
+          : error instanceof Error
           ? error.message
           : "Could not save your score. Please try again."
       );
@@ -936,13 +844,6 @@ function DailyQuestionContent() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* ATTEMPT COUNT */}
-
-          <div className="hidden items-center gap-1.5 text-xs font-semibold text-muted sm:flex">
-            <Users size={14} />
-            {statsCount} attempted
-          </div>
-
           {/* SCORE AFTER SUBMISSION */}
 
           {submitted ? (

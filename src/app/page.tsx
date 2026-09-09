@@ -27,16 +27,15 @@ import {
 import {
   collection,
   doc,
-  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   where,
-  writeBatch,
 } from "firebase/firestore";
 
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
-import { getProfile } from "@/lib/firebase/profile";
 
 const features = [
   {
@@ -186,7 +185,6 @@ export default function Home() {
 
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [streakLeaders, setStreakLeaders] = useState<StreakEntry[]>([]);
-  const [publicProfileNames, setPublicProfileNames] = useState<Record<string, string>>({});
   const [dailyReads, setDailyReads] = useState<DailyRead[]>([]);
   const [today, setToday] = useState(todayIST());
 
@@ -262,37 +260,6 @@ export default function Home() {
       (error) => console.error("Could not load Daily Reads:", error)
     );
   }, [user, today]);
-
-  // Older streak documents predate the public display-name fields. When an
-  // admin visits Home, safely backfill those labels from the private profiles
-  // collection; students never receive access to profile records themselves.
-  useEffect(() => {
-    if (!user) return;
-    void (async () => {
-      try {
-        const currentProfile = await getProfile(user.uid);
-        if (currentProfile?.role !== "admin") return;
-        const [streakSnapshot, profileSnapshot] = await Promise.all([
-          getDocs(collection(db, "user_streaks")),
-          getDocs(collection(db, "profiles")),
-        ]);
-        const profiles = new Map(profileSnapshot.docs.map((profile) => [profile.id, profile.data()]));
-        const updates = streakSnapshot.docs.flatMap((streak) => {
-          const data = streak.data();
-          const profile = profiles.get(String(data.userId || streak.id));
-          if (!profile || data.displayName) return [];
-          return [{ id: streak.id, displayName: String(profile.name || profile.displayName || "Student"), email: String(profile.email || "") }];
-        });
-        for (let start = 0; start < updates.length; start += 450) {
-          const batch = writeBatch(db);
-          updates.slice(start, start + 450).forEach((update) => batch.set(doc(db, "user_streaks", update.id), { displayName: update.displayName, email: update.email }, { merge: true }));
-          await batch.commit();
-        }
-      } catch (error) {
-        console.error("Could not backfill streak leaderboard names:", error);
-      }
-    })();
-  }, [user]);
 
   /*
    * --------------------------------------------------
@@ -382,7 +349,7 @@ export default function Home() {
         );
 
         return onSnapshot(
-          entriesRef,
+          query(entriesRef, orderBy("score", "desc"), limit(5)),
           (snapshot) => {
             const allEntries: LeaderboardEntry[] = snapshot.docs.map(
               (entryDoc) => {
@@ -421,7 +388,7 @@ export default function Home() {
             setLeaderboards((previous) => ({
               ...previous,
               [section]: {
-                entries: allEntries.slice(0, 5),
+                entries: allEntries,
                 total: allEntries.length,
               },
             }));
@@ -445,20 +412,11 @@ export default function Home() {
     };
   }, [date]);
 
-  useEffect(() => onSnapshot(collection(db, "user_streaks"), (snapshot) => {
+  useEffect(() => onSnapshot(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5)), (snapshot) => {
     const entries = snapshot.docs.map((item) => ({ userId: String(item.data().userId || item.id), displayName: String(item.data().displayName || ""), email: String(item.data().email || ""), currentStreak: Number(item.data().currentStreak || 0) }));
     entries.sort((a, b) => b.currentStreak - a.currentStreak || getDisplayName(a).localeCompare(getDisplayName(b)));
     setStreakLeaders(entries.slice(0, 5));
   }, (error) => console.error("Could not load streak leaderboard:", error)), []);
-
-  useEffect(() => onSnapshot(collection(db, "profiles"), (snapshot) => {
-    const names: Record<string, string> = {};
-    snapshot.docs.forEach((profile) => {
-      const data = profile.data();
-      names[profile.id] = String(data.name || data.displayName || "").trim();
-    });
-    setPublicProfileNames(names);
-  }, (error) => console.error("Could not load public leaderboard names:", error)), []);
 
   /*
    * --------------------------------------------------
@@ -471,7 +429,7 @@ export default function Home() {
   ).length;
 
   const targetPercentage = Math.round((completedCount / 3) * 100);
-  const displayStreakName = (entry: StreakEntry) => entry.displayName?.trim() || publicProfileNames[entry.userId] || entry.email?.split("@")[0] || "Student";
+  const displayStreakName = (entry: StreakEntry) => entry.displayName?.trim() || entry.email?.split("@")[0] || "Student";
   const rankedStreakLeaders = [...streakLeaders].sort((a, b) => b.currentStreak - a.currentStreak || displayStreakName(a).localeCompare(displayStreakName(b)));
 
   /*
@@ -779,7 +737,7 @@ export default function Home() {
                         />
 
                         <h3 className="font-display text-[16px] font-bold">
-                          Top 5/{leaderboard.total}
+                          Top 5
                         </h3>
                       </div>
 
@@ -789,7 +747,7 @@ export default function Home() {
                     </div>
 
                     <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand-darker">
-                      {leaderboard.total} attempted
+                      Live scores
                     </span>
                   </div>
 
