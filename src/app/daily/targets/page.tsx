@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, doc, getDoc, limit, onSnapshot, query } from "firebase/firestore";
+import { collection, doc, getDoc, limit, onSnapshot, query, where } from "firebase/firestore";
 import { ArrowRight, BookOpenCheck, Brain, CheckCircle2, Flame, Loader2, Network, Target } from "lucide-react";
 import { auth, db } from "@/lib/firebase/client";
 
@@ -51,10 +51,9 @@ export default function DailyTargetsPage() {
   const today = useMemo(() => todayIST(), []);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
-  useEffect(() => onSnapshot(query(collection(db, "daily_packages"), limit(60)), (snapshot) => {
+  useEffect(() => onSnapshot(query(collection(db, "daily_packages"), where("published", "==", true), limit(60)), (snapshot) => {
     const availablePackages = snapshot.docs
       .map((item) => ({ id: item.id, ...item.data() }) as DailyPackage)
-      .filter((item) => item.published !== false)
       .sort((a, b) => (b.date || b.id).localeCompare(a.date || a.id));
     setPackages(availablePackages);
     setLoading(false);

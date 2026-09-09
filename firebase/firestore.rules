@@ -197,7 +197,7 @@ service cloud.firestore {
     match /daily_packages/{date} {
 
       allow read:
-        if resource.data.published != false || isAdmin();
+        if (signedIn() && resource.data.published == true) || isAdmin();
 
       allow create, update, delete:
         if isAdmin();
