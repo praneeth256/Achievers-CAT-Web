@@ -306,6 +306,11 @@ service cloud.firestore {
       allow read:
         if signedIn()
         && (
+          // The app reads this deterministic document before a first attempt
+          // exists. In that case `resource.data` is unavailable, so permit
+          // only an ID that ends with the signed-in student's UID.
+          id.matches('^.*_' + request.auth.uid + '$')
+          ||
           resource.data.userId == request.auth.uid
           || isAdmin()
         );

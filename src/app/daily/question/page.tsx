@@ -202,15 +202,17 @@ function DailyQuestionContent() {
     (async () => {
       try {
         const attemptId = `${date}_${section}_${user.uid}`;
-        const [packageSnapshot, attemptSnapshot] = await Promise.all([
-          getDoc(doc(db, "daily_packages", date)),
-          getDoc(doc(db, "daily_attempts", attemptId)),
-        ]);
+        // The package is the required resource. Keep its load independent of
+        // the optional first-attempt lookup: Firestore has no document to read
+        // before a student starts, and that must never hide today's test.
+        const packageSnapshot = await getDoc(doc(db, "daily_packages", date));
         const packageRow = packageSnapshot.exists() ? packageSnapshot.data() : null;
-        const savedAttempt = attemptSnapshot.exists() ? attemptSnapshot.data() : null;
         if (!cancelled && packageRow) {
           setData({ quant: packageRow.quant, varc: packageRow.varc, dilr: packageRow.dilr } as Package);
         }
+
+        const attemptSnapshot = await getDoc(doc(db, "daily_attempts", attemptId));
+        const savedAttempt = attemptSnapshot.exists() ? attemptSnapshot.data() : null;
 
         if (!cancelled && savedAttempt) {
 
