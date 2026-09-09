@@ -1,49 +1,100 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { collection, deleteDoc, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import type { User } from "@supabase/supabase-js";
 import { BookOpenCheck, ChevronLeft, ChevronRight, Circle, Loader2, RotateCcw } from "lucide-react";
-import { auth, db } from "@/lib/firebase/client";
-import { logActivity } from "@/lib/firebase/activity";
+import { createClient } from "@/lib/supabase/client";
 
 type Difficulty = "Easy" | "Moderate" | "Hard" | "Difficult";
 type Section = "Quant" | "VARC" | "DILR";
 type Question = { id: string; section: Section; chapter: string; difficulty: Difficulty; question: string; options: string[]; correctOption: string; questionType?: "MCQ" | "TITA"; correctAnswer?: string; explanation?: string; context?: string; contextTitle?: string; groupId?: string; position?: number };
-type Group = { id: string; section: "VARC-RC" | "DILR"; chapter: string; title: string; content: string; difficulty: Difficulty; questions: Omit<Question, "id" | "section" | "chapter" | "difficulty">[] };
 const styles: Record<Difficulty, string> = { Easy: "bg-brand-tint text-brand-darker", Moderate: "bg-amber-50 text-amber-700", Hard: "bg-red-50 text-red-600", Difficult: "bg-red-50 text-red-600" };
-function answersMatch(question: Question, answer?: string) { if (!answer) return false; if (question.questionType !== "TITA") return answer === question.correctOption; const expected = String(question.correctAnswer || "").trim().toLowerCase(), given = answer.trim().toLowerCase(); const expectedNumber = Number(expected), givenNumber = Number(given); return Number.isFinite(expectedNumber) && Number.isFinite(givenNumber) ? Math.abs(expectedNumber - givenNumber) < 0.0000001 : expected === given; }
+const matches = (q: Question, answer?: string) => q.questionType === "TITA" ? String(q.correctAnswer || "").trim().toLowerCase() === String(answer || "").trim().toLowerCase() : answer === q.correctOption;
 
 export default function PracticePage({ library = "practice" }: { library?: "practice" | "pyq" }) {
-  const [user, setUser] = useState<User | null>(null), [ready, setReady] = useState(false), [loading, setLoading] = useState(true);
-  const [questions, setQuestions] = useState<Question[]>([]), [section, setSection] = useState<Section>("Quant"), [chapter, setChapter] = useState(""), [questionIndex, setQuestionIndex] = useState(0), [setIndex, setSetIndex] = useState(0), [answers, setAnswers] = useState<Record<string, string>>({}), [saving, setSaving] = useState(false), [error, setError] = useState("");
   const isPyq = library === "pyq";
-  const questionCollection = isPyq ? "pyq_questions" : "practice_questions";
-  const groupCollection = isPyq ? "pyq_groups" : "practice_groups";
-  const attemptCollection = isPyq ? "pyq_attempts" : "practice_attempts";
-  useEffect(() => onAuthStateChanged(auth, (value) => { setUser(value); setReady(true); }), []);
-  useEffect(() => { if (!ready) return; if (!user) { setLoading(false); return; } Promise.all([getDocs(query(collection(db, questionCollection), where("published", "==", true))), getDocs(query(collection(db, groupCollection), where("published", "==", true)))]).then(([standalone, grouped]) => { const one = standalone.docs.map((d) => { const x = { id: d.id, ...d.data() } as Omit<Question, "section"> & { section: string }; return { ...x, section: x.section === "VARC-VA" ? "VARC" : x.section } as Question; }); const many = grouped.docs.flatMap((d) => { const g = { id: d.id, ...d.data() } as Group; return g.questions.map((q, i) => ({ ...q, id: `${g.id}_${i}`, groupId: g.id, section: g.section === "VARC-RC" ? "VARC" : "DILR", chapter: g.chapter, difficulty: g.difficulty, context: g.content, contextTitle: g.title } as Question)); }); setQuestions([...one, ...many]); }).catch((e) => { console.error(e); setError(`Could not load ${isPyq ? "PYQ" : "practice"} questions.`); }).finally(() => setLoading(false)); }, [ready, user, questionCollection, groupCollection, isPyq]);
-  useEffect(() => { if (user) getDocs(query(collection(db, attemptCollection), where("userId", "==", user.uid))).then(s => setAnswers(Object.fromEntries(s.docs.map(d => [String(d.data().questionId), String(d.data().selectedOption)])))).catch(() => setError("Could not load saved progress.")); }, [user, attemptCollection]);
-  const chapters = useMemo(() => [...new Set(questions.filter(q => q.section === section).map(q => q.chapter))].sort(), [questions, section]);
-  useEffect(() => { setChapter(chapters[0] || ""); setSetIndex(0); setQuestionIndex(0); }, [section, chapters]);
-  const chapterQuestions = useMemo(() => questions.filter(q => q.section === section && q.chapter === chapter).sort((a, b) => Number(a.position || 0) - Number(b.position || 0) || a.id.localeCompare(b.id)), [questions, section, chapter]);
-  const setIds = useMemo(() => [...new Set(chapterQuestions.map(q => q.groupId).filter((x): x is string => Boolean(x)))], [chapterQuestions]);
-  const grouped = setIds.length > 0;
-  const visible = grouped ? chapterQuestions.filter(q => q.groupId === setIds[setIndex]) : chapterQuestions;
-  const current = visible[questionIndex];
-  const answered = chapterQuestions.filter(q => answers[q.id]).length, correct = chapterQuestions.filter(q => answersMatch(q, answers[q.id])).length;
-  useEffect(() => { if (!chapterQuestions.length) return; if (grouped) { const nextSet = setIds.findIndex(id => chapterQuestions.some(q => q.groupId === id && !answers[q.id])); const chosenSet = nextSet === -1 ? 0 : nextSet; const qs = chapterQuestions.filter(q => q.groupId === setIds[chosenSet]); setSetIndex(chosenSet); setQuestionIndex(Math.max(0, qs.findIndex(q => !answers[q.id]))); } else setQuestionIndex(Math.max(0, chapterQuestions.findIndex(q => !answers[q.id]))); }, [chapter, answers, chapterQuestions, grouped, setIds]);
-  async function answer(letter: string) { if (!user || !current || saving) return; const old = answers[current.id]; setAnswers(a => ({ ...a, [current.id]: letter })); setSaving(true); try { await setDoc(doc(db, attemptCollection, `${user.uid}_${current.id}`), { userId: user.uid, questionId: current.id, section: current.section, chapter: current.chapter, selectedOption: letter, updatedAt: serverTimestamp() }, { merge: true }); void logActivity(user, isPyq ? "pyq" : "practice", `${current.section} · ${current.chapter}`); } catch { setAnswers(a => { const n = { ...a }; if (old) n[current.id] = old; else delete n[current.id]; return n; }); setError("Could not save this answer."); } finally { setSaving(false); } }
-  async function reset() { if (!user || !current || saving) return; const old = answers[current.id]; setAnswers(a => { const n = { ...a }; delete n[current.id]; return n; }); setSaving(true); try { await deleteDoc(doc(db, attemptCollection, `${user.uid}_${current.id}`)); } catch { setAnswers(a => ({ ...a, [current.id]: old })); setError("Could not reset this question."); } finally { setSaving(false); } }
-  if (!ready || loading) return <Loading />;
-  if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><BookOpenCheck className="mx-auto text-brand" size={32}/><h1 className="mt-4 font-display text-2xl font-bold">Sign in to practise chapter-wise</h1><Link href="/login?returnTo=%2Fpractice" className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white">Continue with Google</Link></div>;
-  return <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8"><p className="text-xs font-bold uppercase tracking-wide text-brand-dark">Practice library</p><h1 className="mt-1 font-display text-3xl font-bold">Master one chapter at a time.</h1><div className="mt-7 grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)_150px]"><aside className="rounded-2xl border border-border bg-white p-4"><label className="text-xs font-bold uppercase tracking-wide text-muted">Section<select value={section} onChange={e => setSection(e.target.value as Section)} className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold"><option>Quant</option><option>VARC</option><option>DILR</option></select></label><p className="mt-5 text-xs font-bold uppercase tracking-wide text-muted">Chapters</p><div className="mt-2 space-y-1">{chapters.map(x => <button key={x} onClick={() => { setChapter(x); setSetIndex(0); setQuestionIndex(0); }} className={`w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${chapter === x ? "bg-brand text-white" : "text-muted hover:bg-brand-tint"}`}>{x}</button>)}</div><div className="mt-6 rounded-xl bg-surface-muted p-3 text-sm"><b>{correct}/{chapterQuestions.length} correct</b><p className="text-xs text-muted">{answered} attempted</p></div></aside><main>{current ? <Card q={current} index={questionIndex} total={visible.length} answer={answers[current.id]} saving={saving} onAnswer={answer} onReset={reset} onPrev={() => setQuestionIndex(x => x - 1)} onNext={() => setQuestionIndex(x => x + 1)} /> : <div className="rounded-2xl border border-dashed border-border p-12 text-center"><Circle className="mx-auto text-brand"/>No questions in this chapter yet.</div>}{error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-danger">{error}</p>}</main><aside className="lg:sticky lg:top-20 lg:self-start"><div className="rounded-2xl border border-border bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted">{grouped ? "Passages" : "Questions"}</p><div className="mt-3 grid grid-cols-3 gap-2">{(grouped ? setIds : chapterQuestions.map(q => q.id)).map((id, i) => <button key={id} onClick={() => { if (grouped) { setSetIndex(i); setQuestionIndex(0); } else setQuestionIndex(i); }} className={`h-9 rounded-lg text-sm font-bold ${((grouped ? setIndex === i : questionIndex === i)) ? "bg-brand text-white" : "bg-surface-muted text-muted hover:bg-brand-tint"}`}>{i + 1}</button>)}</div><p className="mt-3 text-xs text-muted">{grouped ? "Choose a passage; its questions appear inside." : "Answered questions are saved."}</p></div></aside></div></div>;
+  const questionTable = isPyq ? "pyq_questions" : "practice_questions";
+  const groupTable = isPyq ? "pyq_groups" : "practice_groups";
+  const attemptTable = isPyq ? "pyq_attempts" : "practice_attempts";
+  const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [section, setSection] = useState<Section>("Quant");
+  const [chapter, setChapter] = useState("");
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data }) => { setUser(data.user); setReady(true); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setUser(session?.user ?? null); setReady(true); });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) { setLoading(false); return; }
+    void (async () => {
+      try {
+        const supabase = createClient();
+        const [{ data: rows, error: qError }, { data: groups, error: gError }, { data: attempts, error: aError }] = await Promise.all([
+          supabase.from(questionTable).select("*").eq("published", true),
+          supabase.from(groupTable).select("*").eq("published", true),
+          supabase.from(attemptTable).select("question_id, selected_option").eq("user_id", user.id),
+        ]);
+        if (qError || gError || aError) throw qError || gError || aError;
+        const standalone = (rows ?? []).map((row: any) => ({ id: row.id, section: row.section === "VARC-VA" ? "VARC" : row.section, chapter: row.chapter, difficulty: row.difficulty, question: row.question, options: row.options, correctOption: row.correct_option, questionType: row.question_type, correctAnswer: row.correct_answer, explanation: row.explanation, position: row.position } as Question));
+        const grouped = (groups ?? []).flatMap((group: any) => (group.questions ?? []).map((q: any, i: number) => ({ ...q, id: `${group.id}_${i}`, groupId: group.id, section: group.section === "VARC-RC" ? "VARC" : "DILR", chapter: group.chapter, difficulty: group.difficulty, context: group.content, contextTitle: group.title } as Question)));
+        setQuestions([...standalone, ...grouped]);
+        setAnswers(Object.fromEntries((attempts ?? []).map((attempt) => [attempt.question_id, attempt.selected_option])));
+      } catch (cause) {
+        console.error(cause);
+        setError(`Could not load ${isPyq ? "PYQ" : "practice"} questions.`);
+      } finally { setLoading(false); }
+    })();
+  }, [ready, user, questionTable, groupTable, attemptTable, isPyq]);
+
+  const chapters = useMemo(() => [...new Set(questions.filter((q) => q.section === section).map((q) => q.chapter))].sort(), [questions, section]);
+  useEffect(() => { setChapter(chapters[0] || ""); setIndex(0); }, [section, chapters]);
+  const visible = useMemo(() => questions.filter((q) => q.section === section && q.chapter === chapter).sort((a, b) => Number(a.position || 0) - Number(b.position || 0) || a.id.localeCompare(b.id)), [questions, section, chapter]);
+  const current = visible[index];
+  const answered = visible.filter((q) => answers[q.id]).length;
+  const correct = visible.filter((q) => matches(q, answers[q.id])).length;
+
+  async function saveAnswer(value: string) {
+    if (!user || !current || saving) return;
+    const previous = answers[current.id];
+    setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: value }));
+    setSaving(true);
+    const { error: saveError } = await createClient().from(attemptTable).upsert({ user_id: user.id, question_id: current.id, section: current.section, chapter: current.chapter, selected_option: value }, { onConflict: "user_id,question_id" });
+    if (saveError) {
+      setAnswers((currentAnswers) => { const next = { ...currentAnswers }; if (previous) next[current.id] = previous; else delete next[current.id]; return next; });
+      setError("Could not save this answer.");
+    }
+    setSaving(false);
+  }
+
+  async function reset() {
+    if (!user || !current || saving) return;
+    const previous = answers[current.id];
+    setAnswers((currentAnswers) => { const next = { ...currentAnswers }; delete next[current.id]; return next; });
+    setSaving(true);
+    const { error: deleteError } = await createClient().from(attemptTable).delete().eq("user_id", user.id).eq("question_id", current.id);
+    if (deleteError) { setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: previous })); setError("Could not reset this question."); }
+    setSaving(false);
+  }
+
+  if (!ready || loading) return <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-muted"><Loader2 className="animate-spin text-brand"/>Loading practice questions...</div>;
+  if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><BookOpenCheck className="mx-auto text-brand" size={32}/><h1 className="mt-4 font-display text-2xl font-bold">Sign in to practise chapter-wise</h1><Link href={`/login?returnTo=${encodeURIComponent(isPyq ? "/practice/pyqs" : "/practice")}`} className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white">Continue with Google</Link></div>;
+  return <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8"><p className="text-xs font-bold uppercase tracking-wide text-brand-dark">{isPyq ? "PYQ library" : "Practice library"}</p><h1 className="mt-1 font-display text-3xl font-bold">Master one chapter at a time.</h1><div className="mt-7 grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)_150px]"><aside className="rounded-2xl border border-border bg-white p-4"><label className="text-xs font-bold uppercase tracking-wide text-muted">Section<select value={section} onChange={(event) => setSection(event.target.value as Section)} className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold"><option>Quant</option><option>VARC</option><option>DILR</option></select></label><p className="mt-5 text-xs font-bold uppercase tracking-wide text-muted">Chapters</p><div className="mt-2 space-y-1">{chapters.map((item) => <button key={item} onClick={() => { setChapter(item); setIndex(0); }} className={`w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${chapter === item ? "bg-brand text-white" : "text-muted hover:bg-brand-tint"}`}>{item}</button>)}</div><div className="mt-6 rounded-xl bg-surface-muted p-3 text-sm"><b>{correct}/{visible.length} correct</b><p className="text-xs text-muted">{answered} attempted</p></div></aside><main>{current ? <QuestionCard q={current} index={index} total={visible.length} answer={answers[current.id]} saving={saving} onAnswer={saveAnswer} onReset={reset} onPrevious={() => setIndex((value) => value - 1)} onNext={() => setIndex((value) => value + 1)} /> : <div className="rounded-2xl border border-dashed border-border p-12 text-center"><Circle className="mx-auto text-brand"/>No questions in this chapter yet.</div>}{error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-danger">{error}</p>}</main><aside className="lg:sticky lg:top-20 lg:self-start"><div className="rounded-2xl border border-border bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted">Questions</p><div className="mt-3 grid grid-cols-3 gap-2">{visible.map((q, itemIndex) => <button key={q.id} onClick={() => setIndex(itemIndex)} className={`h-9 rounded-lg text-sm font-bold ${index === itemIndex ? "bg-brand text-white" : answers[q.id] ? "bg-brand-tint text-brand-darker" : "bg-surface-muted text-muted"}`}>{itemIndex + 1}</button>)}</div></div></aside></div></div>;
 }
-function Loading() { return <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-muted"><Loader2 className="animate-spin text-brand"/>Loading practice questions…</div>; }
-function Card({ q, index, total, answer, saving, onAnswer, onReset, onPrev, onNext }: { q: Question; index: number; total: number; answer?: string; saving: boolean; onAnswer: (x: string) => void; onReset: () => void; onPrev: () => void; onNext: () => void }) {
+
+function QuestionCard({ q, index, total, answer, saving, onAnswer, onReset, onPrevious, onNext }: { q: Question; index: number; total: number; answer?: string; saving: boolean; onAnswer: (value: string) => void; onReset: () => void; onPrevious: () => void; onNext: () => void }) {
   const [entry, setEntry] = useState("");
-  const correct = answersMatch(q, answer);
-  return <section className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-7"><div className="flex justify-between"><p className="font-bold text-brand-darker">Question {index + 1} of {total}</p><span className={`rounded-full px-3 py-1 text-xs font-bold ${styles[q.difficulty]}`}>{q.difficulty}</span></div>{q.context && <div className="mt-6 rounded-xl border border-border bg-surface-muted/60 p-5"><p className="text-xs font-bold uppercase tracking-wide text-brand-dark">{q.contextTitle}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{q.context}</p></div>}<h2 className="mt-7 whitespace-pre-wrap font-display text-xl font-bold leading-relaxed">{q.question}</h2>{q.questionType === "TITA" ? <div className="mt-6 flex gap-3"><input value={answer || entry} disabled={Boolean(answer) || saving} onChange={(event) => setEntry(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && entry.trim()) onAnswer(entry); }} placeholder="Enter your answer here" className="min-w-0 flex-1 rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-brand"/><button disabled={Boolean(answer) || saving || !entry.trim()} onClick={() => onAnswer(entry)} className="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Submit</button></div> : <div className="mt-6 space-y-3">{q.options.map((x, i) => { const l = "ABCDE"[i], state = answer ? (l === q.correctOption ? "border-brand bg-brand-tint" : l === answer ? "border-red-200 bg-red-50 text-danger" : "border-border") : "border-border hover:border-brand"; return <button key={l} disabled={Boolean(answer) || saving} onClick={() => onAnswer(l)} className={`flex w-full gap-3 rounded-xl border px-4 py-3 text-left text-sm ${state}`}><span className="font-bold">{l}.</span>{x}</button>; })}</div>}{answer && <div className="mt-5 rounded-xl bg-brand-tint p-4 text-sm"><b>{correct ? "Correct — well done." : `Correct answer: ${q.questionType === "TITA" ? q.correctAnswer : q.correctOption}`}</b>{q.explanation && <p className="mt-2 whitespace-pre-wrap">{q.explanation}</p>}<button disabled={saving} onClick={onReset} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand-darker"><RotateCcw size={14}/>Reset and try again</button></div>}<div className="mt-7 flex justify-between"><button disabled={index === 0} onClick={onPrev} className="inline-flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm font-bold disabled:opacity-40"><ChevronLeft size={16}/>Previous</button><button disabled={index === total - 1} onClick={onNext} className="inline-flex items-center gap-1 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Next<ChevronRight size={16}/></button></div></section>;
+  const correct = matches(q, answer);
+  return <section className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-7"><div className="flex justify-between"><p className="font-bold text-brand-darker">Question {index + 1} of {total}</p><span className={`rounded-full px-3 py-1 text-xs font-bold ${styles[q.difficulty]}`}>{q.difficulty}</span></div>{q.context && <div className="mt-6 rounded-xl border border-border bg-surface-muted/60 p-5"><p className="text-xs font-bold uppercase tracking-wide text-brand-dark">{q.contextTitle}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{q.context}</p></div>}<h2 className="mt-7 whitespace-pre-wrap font-display text-xl font-bold leading-relaxed">{q.question}</h2>{q.questionType === "TITA" ? <div className="mt-6 flex gap-3"><input value={answer || entry} disabled={Boolean(answer) || saving} onChange={(event) => setEntry(event.target.value)} placeholder="Enter your answer" className="min-w-0 flex-1 rounded-xl border border-border px-4 py-3 text-sm"/><button disabled={Boolean(answer) || saving || !entry.trim()} onClick={() => onAnswer(entry)} className="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Submit</button></div> : <div className="mt-6 space-y-3">{q.options.map((option, optionIndex) => { const label = "ABCDE"[optionIndex]; const state = answer ? (label === q.correctOption ? "border-brand bg-brand-tint" : label === answer ? "border-red-200 bg-red-50 text-danger" : "border-border") : "border-border hover:border-brand"; return <button key={label} disabled={Boolean(answer) || saving} onClick={() => onAnswer(label)} className={`flex w-full gap-3 rounded-xl border px-4 py-3 text-left text-sm ${state}`}><span className="font-bold">{label}.</span>{option}</button>; })}</div>}{answer && <div className="mt-5 rounded-xl bg-brand-tint p-4 text-sm"><b>{correct ? "Correct - well done." : `Correct answer: ${q.questionType === "TITA" ? q.correctAnswer : q.correctOption}`}</b>{q.explanation && <p className="mt-2 whitespace-pre-wrap">{q.explanation}</p>}<button disabled={saving} onClick={onReset} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand-darker"><RotateCcw size={14}/>Reset and try again</button></div>}<div className="mt-7 flex justify-between"><button disabled={index === 0} onClick={onPrevious} className="inline-flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm font-bold disabled:opacity-40"><ChevronLeft size={16}/>Previous</button><button disabled={index === total - 1} onClick={onNext} className="inline-flex items-center gap-1 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Next<ChevronRight size={16}/></button></div></section>;
 }
