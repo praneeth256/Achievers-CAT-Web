@@ -1,16 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebase/client";
-import { logActivity } from "@/lib/firebase/activity";
+import type { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import AssetImage from "@/components/AssetImage";
 import {
   ArrowLeft,
@@ -127,7 +119,7 @@ function DailyQuestionContent() {
       ? requestedSection
       : "quant";
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   const [data, setData] = useState<Package | null>(null);
@@ -185,15 +177,16 @@ function DailyQuestionContent() {
    */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (currentUser) => {
-        setUser(currentUser);
-        setAuthLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   /*
@@ -209,27 +202,18 @@ function DailyQuestionContent() {
 
     (async () => {
       try {
-        const packageSnap = await getDoc(
-          doc(db, "daily_packages", date)
-        );
-
-        if (
-          !cancelled &&
-          packageSnap.exists() &&
-          packageSnap.data().published !== false
-        ) {
-          setData(packageSnap.data() as Package);
+        const supabase = createClient();
+        const [{ data: packageRow, error: packageError }, { data: savedAttempt, error: attemptError }] = await Promise.all([
+          supabase.from("daily_packages").select("quant, varc, dilr").eq("date", date).maybeSingle(),
+          supabase.from("daily_attempts").select("*").eq("user_id", user.id).eq("date", date).eq("section", section).maybeSingle(),
+        ]);
+        if (packageError) throw packageError;
+        if (attemptError) throw attemptError;
+        if (!cancelled && packageRow) {
+          setData({ quant: packageRow.quant, varc: packageRow.varc, dilr: packageRow.dilr } as Package);
         }
 
-        const attemptId =
-          `${date}_${section}_${user.uid}`;
-
-        const attemptSnap = await getDoc(
-          doc(db, "daily_attempts", attemptId)
-        );
-
-        if (!cancelled && attemptSnap.exists()) {
-          const savedAttempt = attemptSnap.data();
+        if (!cancelled && savedAttempt) {
 
           setAttempt(savedAttempt);
 
@@ -411,219 +395,22 @@ function DailyQuestionContent() {
     const score =
       correct * 3 - wrong;
 
-    const attemptId =
-      `${date}_${section}_${user.uid}`;
-
-    /*
-     * Correct leaderboard structure:
-     *
-     * daily_leaderboards
-     *   /2026-08-27_quant
-     *      /entries
-     *         /USER_UID
-     */
-
-    const leaderboardEntryRef = doc(
-      db,
-      "daily_leaderboards",
-      `${date}_${section}`,
-      "entries",
-      user.uid
-    );
-
-    const updateStreak = date === todayIST();
-
     try {
-      /*
-       * Previous daily targets are practice/archive attempts. They do not
-       * affect today's streak or live leaderboard, so save them directly
-       * without reading the shared section counter. This avoids exhausting
-       * Firestore reads for older targets.
-       */
-      if (!updateStreak) {
-        const archivedAttempt = {
-          userId: user.uid,
-          email: user.email || "",
-          displayName: user.displayName || "",
-          date,
-          section,
-          score,
-          correct,
-          wrong,
-          total,
-          answers,
-          timeTakenSeconds: 15 * 60 - seconds,
-          timedOut: auto,
-          submittedAt: serverTimestamp(),
-        };
-
-        await setDoc(
-          doc(db, "daily_attempts", attemptId),
-          archivedAttempt,
-          { merge: true }
-        );
-
-        setAttempt(archivedAttempt);
-        void logActivity(user, "daily", `${sectionLabel(section)} target for ${date}`);
-        setSubmitted(true);
-        setStarted(false);
-        setCurrentQuestion(0);
-        return;
-      }
-
-      await runTransaction(
-        db,
-        async (transaction) => {
-          const attemptRef = doc(
-            db,
-            "daily_attempts",
-            attemptId
-          );
-
-          const streakRef = doc(
-            db,
-            "user_streaks",
-            user.uid
-          );
-
-          /*
-           * IMPORTANT:
-           *
-           * Do NOT transaction.get(attemptRef) here.
-           * A first-time submission does not have a
-           * daily_attempts document yet, and the student's
-           * read permission is intentionally limited to
-           * their own existing attempt. Reading the missing
-           * document inside the transaction can therefore
-           * fail with "Missing or insufficient permissions."
-           *
-           * The page already checks for an existing attempt
-           * while loading. The transaction itself creates the
-           * attempt and safely handles an existing document
-           * through the Firestore update rule.
-           */
-
-          const streakSnap = updateStreak
-            ? await transaction.get(streakRef)
-            : null;
-
-          /*
-           * DAILY ATTEMPT
-           */
-
-          transaction.set(
-            attemptRef,
-            {
-              userId: user.uid,
-              email: user.email || "",
-              displayName:
-                user.displayName || "",
-
-              date,
-              section,
-
-              score,
-              correct,
-              wrong,
-              total,
-
-              answers,
-
-              timeTakenSeconds:
-                15 * 60 - seconds,
-
-              timedOut: auto,
-
-              submittedAt:
-                serverTimestamp(),
-            }
-          );
-
-          /*
-           * LEADERBOARD
-           */
-
-          transaction.set(
-            leaderboardEntryRef,
-            {
-              userId: user.uid,
-              email: user.email || "",
-              displayName:
-                user.displayName || "",
-
-              date,
-              section,
-
-              score,
-              correct,
-              wrong,
-              total,
-
-              updatedAt:
-                serverTimestamp(),
-            }
-          );
-
-          /*
-           * DAILY STREAK
-           *
-           * The streak is per calendar day, not per section.
-           * Submitting multiple sections on the same day therefore
-           * increases the streak only once. Any one completed section
-           * is enough to keep the streak alive.
-           */
-          if (streakSnap) {
-          const previousStreak = streakSnap.exists()
-            ? Number(streakSnap.data().currentStreak || 0)
-            : 0;
-          const lastActivityDate = streakSnap.exists()
-            ? String(streakSnap.data().lastActivityDate || "")
-            : "";
-
-          // Keep the public leaderboard label current even when a student
-          // completes another section on the same calendar day.
-          transaction.set(
-            streakRef,
-            {
-              userId: user.uid,
-              displayName: user.displayName || "Student",
-              email: user.email || "",
-            },
-            { merge: true }
-          );
-
-          if (lastActivityDate !== date) {
-            const newStreak =
-              lastActivityDate === yesterdayIST(date)
-                ? previousStreak + 1
-                : 1;
-
-            const previousLongest = streakSnap.exists()
-              ? Number(streakSnap.data().longestStreak || 0)
-              : 0;
-
-            transaction.set(
-              streakRef,
-              {
-                userId: user.uid,
-                displayName: user.displayName || "Student",
-                email: user.email || "",
-                currentStreak: newStreak,
-                longestStreak: Math.max(previousLongest, newStreak),
-                lastActivityDate: date,
-                updatedAt: serverTimestamp(),
-              },
-              { merge: true }
-            );
-          }
-          }
-        }
-      );
-
-      setAttempt({ score, correct, wrong, total, answers });
+      const { data: savedAttempt, error } = await createClient().rpc("submit_daily_attempt", {
+        p_date: date,
+        p_section: section,
+        p_score: score,
+        p_correct: correct,
+        p_wrong: wrong,
+        p_total: total,
+        p_answers: answers,
+        p_time_taken_seconds: 15 * 60 - seconds,
+        p_timed_out: auto,
+      });
+      if (error) throw error;
+      setAttempt(savedAttempt ?? { score, correct, wrong, total, answers });
 
       setSubmitted(true);
-      void logActivity(user, "daily", `${sectionLabel(section)} target for ${date}`);
       setStarted(false);
 
       /*
@@ -637,13 +424,8 @@ function DailyQuestionContent() {
         error
       );
 
-      const code = typeof error === "object" && error !== null && "code" in error
-        ? String(error.code)
-        : "";
       alert(
-        code === "resource-exhausted"
-          ? "Firebase quota has been reached. This submission could not be saved yet. Please try again after the quota resets or increase the Firebase plan."
-          : error instanceof Error
+        error instanceof Error
           ? error.message
           : "Could not save your score. Please try again."
       );

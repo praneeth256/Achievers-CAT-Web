@@ -14,12 +14,9 @@ import {
   Bell,
   CheckCheck,
 } from "lucide-react";
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, doc, onSnapshot } from "firebase/firestore";
+import type { User } from "@supabase/supabase-js";
 import Logo from "./Logo";
-import { auth, db } from "@/lib/firebase/client";
-import { getProfile } from "@/lib/firebase/profile";
-import { signOutUser } from "@/lib/firebase/auth";
+import { createClient } from "@/lib/supabase/client";
 
 const nav = [
   {
@@ -104,22 +101,25 @@ export default function Header() {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+    const supabase = createClient();
+    const loadUser = async () => {
+      const { data: { user: nextUser } } = await supabase.auth.getUser();
       setUser(nextUser);
-
       if (nextUser) {
-        try {
-          const profile = await getProfile(nextUser.uid);
-          setIsAdmin(profile?.role === "admin");
-        } catch {
-          setIsAdmin(false);
-        }
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", nextUser.id).maybeSingle();
+        setIsAdmin(profile?.role === "admin");
       } else {
         setIsAdmin(false);
       }
+    };
+    void loadUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setUser(nextSession?.user ?? null);
+      if (!nextSession) setIsAdmin(false);
+      else void supabase.from("profiles").select("role").eq("id", nextSession.user.id).maybeSingle().then(({ data }) => setIsAdmin(data?.role === "admin"));
     });
 
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -128,34 +128,17 @@ export default function Header() {
       return;
     }
 
-    const streakRef = doc(db, "user_streaks", user.uid);
-
-    return onSnapshot(
-      streakRef,
-      (snap) => {
-        if (!snap.exists()) {
-          setStreak(0);
-          return;
-        }
-
-        const currentStreak = Number(snap.data().currentStreak ?? 0);
-        setStreak(Number.isFinite(currentStreak) && currentStreak >= 0 ? currentStreak : 0);
-      },
-      (error) => {
-        console.error("Could not listen to user streak:", error);
-        setStreak(0);
-      }
-    );
+    void createClient().from("user_streaks").select("current_streak").eq("user_id", user.id).maybeSingle().then(({ data }) => setStreak(Number(data?.current_streak ?? 0)));
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    const readKey = `achievers-read-notifications-${user.uid}`;
-    const welcomeId = `welcome-${user.uid}`;
+    const readKey = `achievers-read-notifications-${user.id}`;
+    const welcomeId = `welcome-${user.id}`;
     const saved = JSON.parse(localStorage.getItem(readKey) || "[]") as string[];
-    return onSnapshot(collection(db, "notifications"), (snapshot) => {
+    void createClient().from("notifications").select("id, text, created_at").order("created_at", { ascending: false }).then(({ data }) => {
       setReadNotifications(saved);
-      const items: { id: string; text: string; createdAt?: { toMillis?: () => number } }[] = snapshot.docs.map((item) => ({ id: item.id, text: String(item.data().text || ""), createdAt: item.data().createdAt }));
+      const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = (data ?? []).map((item) => ({ id: String(item.id), text: item.text, createdAt: { toMillis: () => new Date(item.created_at).getTime() } }));
       if (!localStorage.getItem(welcomeId)) {
         items.push({ id: welcomeId, text: "Welcome to Achievers CAT. Hope your journey is smooth and highly productive!" });
         localStorage.setItem(welcomeId, "true");
@@ -186,11 +169,11 @@ export default function Header() {
     if (!user) return;
     const ids = notifications.map((notification) => notification.id);
     setReadNotifications(ids);
-    localStorage.setItem(`achievers-read-notifications-${user.uid}`, JSON.stringify(ids));
+    localStorage.setItem(`achievers-read-notifications-${user.id}`, JSON.stringify(ids));
   }
 
   async function logout() {
-    await signOutUser();
+    await createClient().auth.signOut();
 
     setAccountOpen(false);
     setOpen(false);
@@ -290,9 +273,9 @@ export default function Header() {
                 className="flex items-center gap-2 rounded-full border border-border bg-white py-1 pl-1 pr-3 transition hover:border-brand"
                 aria-label="Open account menu"
               >
-                {user.photoURL ? (
+                {user.user_metadata.avatar_url ? (
                   <img
-                    src={user.photoURL}
+                    src={user.user_metadata.avatar_url}
                     alt=""
                     className="h-8 w-8 rounded-full object-cover"
                   />
@@ -303,7 +286,7 @@ export default function Header() {
                 )}
 
                 <span className="max-w-[120px] truncate text-[13px] font-semibold text-foreground">
-                  {user.displayName?.split(" ")[0] || "Account"}
+                  {(user.user_metadata.full_name || user.user_metadata.name || "Account").split(" ")[0]}
                 </span>
 
                 <ChevronDown
@@ -319,7 +302,7 @@ export default function Header() {
 
                   <div className="border-b border-border px-3 py-2.5">
                     <p className="truncate text-[14px] font-semibold text-foreground">
-                      {user.displayName || "Student"}
+                      {user.user_metadata.full_name || user.user_metadata.name || "Student"}
                     </p>
 
                     <p className="truncate text-[12px] text-muted">
