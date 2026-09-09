@@ -2,7 +2,9 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithGoogle } from "@/lib/firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 import Logo from "@/components/Logo";
 import { Loader2 } from "lucide-react";
 
@@ -21,13 +23,14 @@ function LoginForm() {
     try {
       const returnTo = searchParams.get("returnTo");
       const destination = returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/daily";
-      const { error: signInError } = await createClient().auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`,
-        },
-      });
-      if (signInError) throw signInError;
+      const { user } = await signInWithGoogle();
+      await setDoc(doc(db, "profiles", user.uid), {
+        displayName: user.displayName || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      window.location.assign(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
       setLoading(false);

@@ -14,9 +14,13 @@ import {
   Bell,
   CheckCheck,
 } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import Logo from "./Logo";
-import { createClient } from "@/lib/supabase/client";
+import { auth, db } from "@/lib/firebase/client";
+import { isAdminUser } from "@/lib/firebase/profile";
+import { signOutUser } from "@/lib/firebase/auth";
 
 const nav = [
   {
@@ -101,25 +105,16 @@ export default function Header() {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    const loadUser = async () => {
-      const { data: { user: nextUser } } = await supabase.auth.getUser();
+    const loadUser = async (nextUser: User | null) => {
       setUser(nextUser);
       if (nextUser) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", nextUser.id).maybeSingle();
-        setIsAdmin(profile?.role === "admin");
+        setIsAdmin(await isAdminUser(nextUser.uid));
       } else {
         setIsAdmin(false);
       }
     };
-    void loadUser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setUser(nextSession?.user ?? null);
-      if (!nextSession) setIsAdmin(false);
-      else void supabase.from("profiles").select("role").eq("id", nextSession.user.id).maybeSingle().then(({ data }) => setIsAdmin(data?.role === "admin"));
-    });
-
-    return () => subscription.unsubscribe();
+    void loadUser(auth.currentUser);
+    return onAuthStateChanged(auth, (nextUser) => { void loadUser(nextUser); });
   }, []);
 
   useEffect(() => {
@@ -128,17 +123,17 @@ export default function Header() {
       return;
     }
 
-    void createClient().from("user_streaks").select("current_streak").eq("user_id", user.id).maybeSingle().then(({ data }) => setStreak(Number(data?.current_streak ?? 0)));
+    void getDoc(doc(db, "user_streaks", user.uid)).then((snap) => setStreak(Number(snap.data()?.currentStreak ?? 0)));
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    const readKey = `achievers-read-notifications-${user.id}`;
-    const welcomeId = `welcome-${user.id}`;
+    const readKey = `achievers-read-notifications-${user.uid}`;
+    const welcomeId = `welcome-${user.uid}`;
     const saved = JSON.parse(localStorage.getItem(readKey) || "[]") as string[];
-    void createClient().from("notifications").select("id, text, created_at").order("created_at", { ascending: false }).then(({ data }) => {
+    void getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"))).then((snapshot) => {
       setReadNotifications(saved);
-      const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = (data ?? []).map((item) => ({ id: String(item.id), text: item.text, createdAt: { toMillis: () => new Date(item.created_at).getTime() } }));
+      const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = snapshot.docs.map((item) => ({ id: item.id, text: String(item.data().text || ""), createdAt: item.data().createdAt }));
       if (!localStorage.getItem(welcomeId)) {
         items.push({ id: welcomeId, text: "Welcome to Achievers CAT. Hope your journey is smooth and highly productive!" });
         localStorage.setItem(welcomeId, "true");
@@ -169,11 +164,11 @@ export default function Header() {
     if (!user) return;
     const ids = notifications.map((notification) => notification.id);
     setReadNotifications(ids);
-    localStorage.setItem(`achievers-read-notifications-${user.id}`, JSON.stringify(ids));
+    localStorage.setItem(`achievers-read-notifications-${user.uid}`, JSON.stringify(ids));
   }
 
   async function logout() {
-    await createClient().auth.signOut();
+    await signOutUser();
 
     setAccountOpen(false);
     setOpen(false);
@@ -273,9 +268,9 @@ export default function Header() {
                 className="flex items-center gap-2 rounded-full border border-border bg-white py-1 pl-1 pr-3 transition hover:border-brand"
                 aria-label="Open account menu"
               >
-                {user.user_metadata.avatar_url ? (
+                {user.photoURL ? (
                   <img
-                    src={user.user_metadata.avatar_url}
+                    src={user.photoURL}
                     alt=""
                     className="h-8 w-8 rounded-full object-cover"
                   />
@@ -286,7 +281,7 @@ export default function Header() {
                 )}
 
                 <span className="max-w-[120px] truncate text-[13px] font-semibold text-foreground">
-                  {(user.user_metadata.full_name || user.user_metadata.name || "Account").split(" ")[0]}
+                  {(user.displayName || "Account").split(" ")[0]}
                 </span>
 
                 <ChevronDown
@@ -302,7 +297,7 @@ export default function Header() {
 
                   <div className="border-b border-border px-3 py-2.5">
                     <p className="truncate text-[14px] font-semibold text-foreground">
-                      {user.user_metadata.full_name || user.user_metadata.name || "Student"}
+                      {user.displayName || "Student"}
                     </p>
 
                     <p className="truncate text-[12px] text-muted">

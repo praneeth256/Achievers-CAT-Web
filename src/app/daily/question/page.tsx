@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+import type { User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 import AssetImage from "@/components/AssetImage";
 import {
   ArrowLeft,
@@ -177,16 +179,12 @@ function DailyQuestionContent() {
    */
 
   useEffect(() => {
-    const supabase = createClient();
-    void supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
+    setUser(auth.currentUser);
+    setAuthLoading(false);
+    return onAuthStateChanged(auth, (session) => {
+      setUser(session);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-    return () => subscription.unsubscribe();
   }, []);
 
   /*
@@ -202,13 +200,13 @@ function DailyQuestionContent() {
 
     (async () => {
       try {
-        const supabase = createClient();
-        const [{ data: packageRow, error: packageError }, { data: savedAttempt, error: attemptError }] = await Promise.all([
-          supabase.from("daily_packages").select("quant, varc, dilr").eq("date", date).maybeSingle(),
-          supabase.from("daily_attempts").select("*").eq("user_id", user.id).eq("date", date).eq("section", section).maybeSingle(),
+        const attemptId = `${date}_${section}_${user.uid}`;
+        const [packageSnapshot, attemptSnapshot] = await Promise.all([
+          getDoc(doc(db, "daily_packages", date)),
+          getDoc(doc(db, "daily_attempts", attemptId)),
         ]);
-        if (packageError) throw packageError;
-        if (attemptError) throw attemptError;
+        const packageRow = packageSnapshot.exists() ? packageSnapshot.data() : null;
+        const savedAttempt = attemptSnapshot.exists() ? attemptSnapshot.data() : null;
         if (!cancelled && packageRow) {
           setData({ quant: packageRow.quant, varc: packageRow.varc, dilr: packageRow.dilr } as Package);
         }
@@ -396,19 +394,28 @@ function DailyQuestionContent() {
       correct * 3 - wrong;
 
     try {
-      const { data: savedAttempt, error } = await createClient().rpc("submit_daily_attempt", {
-        p_date: date,
-        p_section: section,
-        p_score: score,
-        p_correct: correct,
-        p_wrong: wrong,
-        p_total: total,
-        p_answers: answers,
-        p_time_taken_seconds: 15 * 60 - seconds,
-        p_timed_out: auto,
+      const attemptId = `${date}_${section}_${user.uid}`;
+      const attemptRef = doc(db, "daily_attempts", attemptId);
+      const leaderboardRef = doc(db, "daily_leaderboards", `${date}_${section}`, "entries", user.uid);
+      const streakRef = doc(db, "user_streaks", user.uid);
+      const statRef = doc(db, "daily_section_stats", `${date}_${section}`);
+      const savedAttempt = await runTransaction(db, async (transaction) => {
+        const [oldAttempt, oldStreak, oldStat] = await Promise.all([
+          transaction.get(attemptRef), transaction.get(streakRef), transaction.get(statRef),
+        ]);
+        const attemptData = { userId: user.uid, date, section, score, correct, wrong, total, answers, timeTakenSeconds: 15 * 60 - seconds, timedOut: auto, updatedAt: serverTimestamp() };
+        transaction.set(attemptRef, attemptData, { merge: true });
+        transaction.set(leaderboardRef, { ...attemptData, displayName: user.displayName || "Student" }, { merge: true });
+        if (!oldAttempt.exists()) {
+          const prior = oldStreak.data();
+          const yesterday = yesterdayIST(date);
+          const currentStreak = prior?.lastActivityDate === yesterday ? Number(prior.currentStreak || 0) + 1 : 1;
+          transaction.set(streakRef, { userId: user.uid, currentStreak, longestStreak: Math.max(currentStreak, Number(prior?.longestStreak || 0)), lastActivityDate: date, updatedAt: serverTimestamp() }, { merge: true });
+          transaction.set(statRef, { date, section, count: Number(oldStat.data()?.count || 0) + 1, updatedAt: serverTimestamp() }, { merge: true });
+        }
+        return attemptData;
       });
-      if (error) throw error;
-      setAttempt(savedAttempt ?? { score, correct, wrong, total, answers });
+      setAttempt(savedAttempt);
 
       setSubmitted(true);
       setStarted(false);

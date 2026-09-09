@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import AdminGuard from "@/components/AdminGuard";
 import MediaInput from "@/components/MediaInput";
 import type { MediaValue } from "@/lib/firebase/media";
-import { createClient } from "@/lib/supabase/client";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 import { showToast } from "@/components/Toast";
 import Link from "next/link";
 import {
@@ -556,12 +557,8 @@ function DailyEditor() {
 
     void (async () => {
       try {
-        const { data: packageRow, error } = await createClient()
-          .from("daily_packages")
-          .select("published, quant, varc, dilr")
-          .eq("date", date)
-          .maybeSingle();
-        if (error) throw error;
+        const packageSnapshot = await getDoc(doc(db, "daily_packages", date));
+        const packageRow = packageSnapshot.exists() ? packageSnapshot.data() : null;
         if (!alive) return;
         setData(packageRow ? normalizePackage(date, packageRow) : emptyPackage(date));
       } catch (error) {
@@ -735,15 +732,14 @@ function DailyEditor() {
 
 
       // ----------------------------------------------
-      const { error } = await createClient().from("daily_packages").upsert({
-        id: date,
+      await setDoc(doc(db, "daily_packages", date), {
         date,
         published: data.published,
         quant,
         varc: { ...data.varc, passage: varcPassage, questions: varcQuestions },
         dilr: { ...data.dilr, set: dilrSet, questions: dilrQuestions },
-      }, { onConflict: "date" });
-      if (error) throw error;
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
       lastSavedSnapshot.current = JSON.stringify(data);
 

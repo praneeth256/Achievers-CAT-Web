@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { BookOpenCheck, ChevronLeft, ChevronRight, Circle, Loader2, RotateCcw } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { auth, db } from "@/lib/firebase/client";
 
 type Difficulty = "Easy" | "Moderate" | "Hard" | "Difficult";
 type Section = "Quant" | "VARC" | "DILR";
@@ -29,10 +31,8 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
-    void supabase.auth.getUser().then(({ data }) => { setUser(data.user); setReady(true); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setUser(session?.user ?? null); setReady(true); });
-    return () => subscription.unsubscribe();
+    setUser(auth.currentUser); setReady(true);
+    return onAuthStateChanged(auth, (session) => { setUser(session); setReady(true); });
   }, []);
 
   useEffect(() => {
@@ -40,17 +40,18 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
     if (!user) { setLoading(false); return; }
     void (async () => {
       try {
-        const supabase = createClient();
-        const [{ data: rows, error: qError }, { data: groups, error: gError }, { data: attempts, error: aError }] = await Promise.all([
-          supabase.from(questionTable).select("*").eq("published", true),
-          supabase.from(groupTable).select("*").eq("published", true),
-          supabase.from(attemptTable).select("question_id, selected_option").eq("user_id", user.id),
+        const [questionSnapshots, groupSnapshots, attemptSnapshots] = await Promise.all([
+          getDocs(query(collection(db, questionTable), where("published", "==", true))),
+          getDocs(query(collection(db, groupTable), where("published", "==", true))),
+          getDocs(query(collection(db, attemptTable), where("userId", "==", user.uid))),
         ]);
-        if (qError || gError || aError) throw qError || gError || aError;
-        const standalone = (rows ?? []).map((row: any) => ({ id: row.id, section: row.section === "VARC-VA" ? "VARC" : row.section, chapter: row.chapter, difficulty: row.difficulty, question: row.question, options: row.options, correctOption: row.correct_option, questionType: row.question_type, correctAnswer: row.correct_answer, explanation: row.explanation, position: row.position } as Question));
-        const grouped = (groups ?? []).flatMap((group: any) => (group.questions ?? []).map((q: any, i: number) => ({ ...q, id: `${group.id}_${i}`, groupId: group.id, section: group.section === "VARC-RC" ? "VARC" : "DILR", chapter: group.chapter, difficulty: group.difficulty, context: group.content, contextTitle: group.title } as Question)));
+        const rows = questionSnapshots.docs.map((item) => ({ id: item.id, ...item.data() }));
+        const groups = groupSnapshots.docs.map((item) => ({ id: item.id, ...item.data() }));
+        const attempts = attemptSnapshots.docs.map((item) => item.data());
+        const standalone = rows.map((row: any) => ({ id: row.id, section: row.section === "VARC-VA" ? "VARC" : row.section, chapter: row.chapter, difficulty: row.difficulty, question: row.question, options: row.options, correctOption: row.correctOption, questionType: row.questionType, correctAnswer: row.correctAnswer, explanation: row.explanation, position: row.position } as Question));
+        const grouped = groups.flatMap((group: any) => (group.questions ?? []).map((q: any, i: number) => ({ ...q, id: `${group.id}_${i}`, groupId: group.id, section: group.section === "VARC-RC" ? "VARC" : "DILR", chapter: group.chapter, difficulty: group.difficulty, context: group.content, contextTitle: group.title } as Question)));
         setQuestions([...standalone, ...grouped]);
-        setAnswers(Object.fromEntries((attempts ?? []).map((attempt) => [attempt.question_id, attempt.selected_option])));
+        setAnswers(Object.fromEntries(attempts.map((attempt: any) => [attempt.questionId, attempt.selectedOption])));
       } catch (cause) {
         console.error(cause);
         setError(`Could not load ${isPyq ? "PYQ" : "practice"} questions.`);
@@ -70,8 +71,8 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
     const previous = answers[current.id];
     setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: value }));
     setSaving(true);
-    const { error: saveError } = await createClient().from(attemptTable).upsert({ user_id: user.id, question_id: current.id, section: current.section, chapter: current.chapter, selected_option: value }, { onConflict: "user_id,question_id" });
-    if (saveError) {
+    try { await setDoc(doc(db, attemptTable, `${user.uid}_${current.id}`), { userId: user.uid, questionId: current.id, section: current.section, chapter: current.chapter, selectedOption: value }, { merge: true }); }
+    catch {
       setAnswers((currentAnswers) => { const next = { ...currentAnswers }; if (previous) next[current.id] = previous; else delete next[current.id]; return next; });
       setError("Could not save this answer.");
     }
@@ -83,8 +84,7 @@ export default function PracticePage({ library = "practice" }: { library?: "prac
     const previous = answers[current.id];
     setAnswers((currentAnswers) => { const next = { ...currentAnswers }; delete next[current.id]; return next; });
     setSaving(true);
-    const { error: deleteError } = await createClient().from(attemptTable).delete().eq("user_id", user.id).eq("question_id", current.id);
-    if (deleteError) { setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: previous })); setError("Could not reset this question."); }
+    try { await deleteDoc(doc(db, attemptTable, `${user.uid}_${current.id}`)); } catch { setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: previous })); setError("Could not reset this question."); }
     setSaving(false);
   }
 
