@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { browserLocalPersistence, getAuth, GoogleAuthProvider, setPersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -24,7 +24,16 @@ export const authPersistenceReady = typeof window === "undefined"
   : setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.error("Could not enable persistent sign-in.", error);
     });
-export const db = getFirestore(firebaseApp);
+// Keep previously read Firestore documents in the browser's IndexedDB cache.
+// This preserves every feature (including live listeners) while avoiding a
+// complete set of repeat reads when a student returns, refreshes, or opens a
+// second tab. Server rendering has no IndexedDB, so it retains the standard
+// in-memory client there.
+export const db = typeof window === "undefined"
+  ? getFirestore(firebaseApp)
+  : initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
 export const storage = getStorage(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
