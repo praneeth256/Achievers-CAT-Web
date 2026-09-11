@@ -29,6 +29,9 @@ function LoginForm() {
         displayName: user.displayName || "",
         email: user.email || "",
         photoURL: user.photoURL || "",
+        // Keep these timestamps on the profile rather than trying to infer
+        // them from activity rows in the admin dashboard.
+        lastLoginAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
       void logActivity(user, "signin", "Signed in");

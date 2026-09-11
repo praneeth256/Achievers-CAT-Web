@@ -11,6 +11,8 @@ type Attempt = { id: string; mockId?: string; type?: string; section?: string; s
 type Ranking = { userId: string; displayName?: string; score?: number; correct?: number; wrong?: number };
 type Leader = { userId: string; name: string; score: number; correct: number; wrong: number };
 type MockResult = { id: string; name: string; score: number; total: number; leaders: Leader[] };
+type DailyAttempt = Attempt & { date?: string; section?: "quant" | "varc" | "dilr" };
+type DailyRanking = { section: "quant" | "varc" | "dilr"; date: string; score: number; totalScore: number; leaders: Leader[]; attempters: number };
 type Group = "Daily Targets" | "VARC Sectionals" | "DILR Sectionals" | "QA Sectionals" | "Full Mocks";
 
 function Summary({ title, attempts }: { title: Group; attempts: Attempt[] }) {
@@ -38,11 +40,17 @@ function MockLeaderboard({ result }: { result: MockResult }) {
   </article>;
 }
 
+function DailyLeaderboard({ result }: { result: DailyRanking }) {
+  const label = result.section === "quant" ? "QA" : result.section.toUpperCase();
+  return <article className="rounded-2xl border border-border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-display text-base font-semibold text-foreground">{label} daily ranking</h3><p className="mt-1 text-sm text-muted">{result.date} · Your score: <span className="font-semibold text-foreground">{result.score}/{result.totalScore}</span></p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-brand-tint px-3 py-1.5 text-sm font-bold text-brand-darker"><Trophy size={15} /> Top 5 / {result.attempters} attempters</span></div><div className="mt-4 overflow-hidden rounded-xl border border-border">{result.leaders.length ? result.leaders.map((leader, index) => <div key={leader.userId} className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-sm last:border-b-0"><span className="min-w-0 truncate font-medium text-foreground"><span className="mr-3 inline-flex w-5 text-muted">#{index + 1}</span>{leader.name}</span><span className="font-bold tabular-nums text-brand-darker">{leader.score}</span></div>) : <p className="px-4 py-3 text-sm text-muted">No submitted scores are available yet.</p>}</div></article>;
+}
+
 export default function PerformancePage() {
   const [user, setUser] = useState<User | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [dailyAttempts, setDailyAttempts] = useState<Attempt[]>([]);
   const [mockResults, setMockResults] = useState<MockResult[]>([]);
+  const [dailyRankings, setDailyRankings] = useState<DailyRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -60,9 +68,25 @@ export default function PerformancePage() {
           const leaders = rankingsSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) - Number(a.correct || 0) || a.userId.localeCompare(b.userId)).map((ranking) => ({ userId: ranking.userId, name: ranking.displayName || "Student", score: Number(ranking.score || 0), correct: Number(ranking.correct || 0), wrong: Number(ranking.wrong || 0) }));
           return { id: mockId, name: String(mockSnapshot.data()?.name || "Mock test"), score: Number(attempt.score || 0), total: Number(attempt.total || 0) * 3, leaders };
         }));
+        const savedDailyAttempts = dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as DailyAttempt);
+        // One ranking per section (the latest daily attempt) keeps this page
+        // bounded to at most three leaderboards and three counter reads.
+        const latestBySection = (["quant", "varc", "dilr"] as const).flatMap((section) => {
+          const latest = savedDailyAttempts.filter((attempt) => attempt.section === section && attempt.date).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+          return latest ? [latest] : [];
+        });
+        const dailyRankingSettlements = await Promise.allSettled(latestBySection.map(async (attempt) => {
+          const [leadersSnapshot, countSnapshot] = await Promise.all([
+            getDocs(query(collection(db, "daily_leaderboards", `${attempt.date}_${attempt.section}`, "entries"), orderBy("score", "desc"), limit(5))),
+            getDoc(doc(db, "daily_section_stats", `${attempt.date}_${attempt.section}`)),
+          ]);
+          const leaders = leadersSnapshot.docs.map((item) => item.data() as Ranking).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Number(b.correct || 0) - Number(a.correct || 0) || a.userId.localeCompare(b.userId)).map((entry) => ({ userId: entry.userId, name: entry.displayName || "Student", score: Number(entry.score || 0), correct: Number(entry.correct || 0), wrong: Number(entry.wrong || 0) }));
+          return { section: attempt.section!, date: attempt.date!, score: Number(attempt.score || 0), totalScore: Number(attempt.total || 0) * 3, leaders, attempters: Math.max(Number(countSnapshot.data()?.count || 0), leaders.length) };
+        }));
         setAttempts(submittedAttempts);
-        setDailyAttempts(dailySnapshot.docs.map((item) => ({ id: item.id, ...item.data(), status: "submitted" }) as Attempt));
+        setDailyAttempts(savedDailyAttempts);
         setMockResults(resultSettlements.flatMap((result) => result.status === "fulfilled" ? [result.value] : []));
+        setDailyRankings(dailyRankingSettlements.flatMap((result) => result.status === "fulfilled" ? [result.value] : []));
       })
       .catch((loadError) => { console.error(loadError); setError("Could not load your performance right now. Please try again."); })
       .finally(() => setLoading(false));
@@ -75,5 +99,5 @@ export default function PerformancePage() {
   const sectional = typeIs("sectional");
   const sectionIs = (section: string) => sectional.filter((attempt) => String(attempt.section || "").toUpperCase() === section);
 
-  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p>{error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-danger">{error}</p>}<div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Mock test performance</h2><p className="mt-1 text-sm text-muted">See the highest score and top scorers for each mock you have completed.</p><div className="mt-4 space-y-3">{mockResults.length ? mockResults.map((result) => <MockLeaderboard key={result.id} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">Complete a mock test to see its leaderboard here.</div>}</div></section></div>;
+  return <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8"><h1 className="font-display text-[28px] font-bold text-foreground">My Performance</h1><p className="mt-2 text-[14.5px] text-muted">Scores from your submitted tests.</p>{error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-danger">{error}</p>}<div className="mt-8 space-y-4"><Summary title="Daily Targets" attempts={dailyAttempts} /><div className="grid gap-4 lg:grid-cols-3"><Summary title="VARC Sectionals" attempts={sectionIs("VARC")} /><Summary title="DILR Sectionals" attempts={sectionIs("DILR")} /><Summary title="QA Sectionals" attempts={sectionIs("QA")} /></div><Summary title="Full Mocks" attempts={typeIs("full")} /></div><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Daily target rankings</h2><p className="mt-1 text-sm text-muted">Your latest QA, VARC and DILR daily target, with the top 5 out of all section attempters.</p><div className="mt-4 grid gap-3 lg:grid-cols-3">{dailyRankings.length ? dailyRankings.map((result) => <DailyLeaderboard key={`${result.date}_${result.section}`} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted lg:col-span-3">Complete a daily target to see its section ranking.</div>}</div></section><section className="mt-8"><h2 className="font-display text-xl font-semibold text-foreground">Mock test performance</h2><p className="mt-1 text-sm text-muted">See the highest score and top scorers for each mock you have completed.</p><div className="mt-4 space-y-3">{mockResults.length ? mockResults.map((result) => <MockLeaderboard key={result.id} result={result} />) : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">Complete a mock test to see its leaderboard here.</div>}</div></section></div>;
 }

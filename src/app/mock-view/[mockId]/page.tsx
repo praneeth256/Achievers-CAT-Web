@@ -329,9 +329,12 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           // the result is available instead of waiting on every rank record.
           const provisionalPercentile = estimatePercentile(score, total, mock.difficulty);
           const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds };
-          await setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() }, { merge: true });
+          // The uploaded test has already switched to its result screen. Show
+          // the student's score immediately; Firestore/ranking writes can
+          // finish afterwards without making the result look blank or stale.
           attemptRef.current = savedScore;
           setAttempt(savedScore);
+          await setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() }, { merge: true });
 
           const rankingSnapshot = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)));
           const rankings = rankingSnapshot.docs.map((item) => item.data() as RankingAttempt).filter((item) => item.userId !== user.uid);

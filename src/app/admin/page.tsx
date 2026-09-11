@@ -16,6 +16,7 @@ const sections = [
   { title: "Full Mocks", desc: "Create, publish, and manage full CAT mocks.", href: "/admin/mocks?type=full" },
   { title: "Materials", desc: "Publish study materials by CAT section and topic.", href: "/admin/materials" },
   { title: "Performance / Analytics", desc: "Review student attempts and test metrics.", href: "/admin/analytics" },
+  { title: "Student Data", desc: "Search students and open their submitted tests, answers, scores, and daily-target progress.", href: "/admin/students" },
   { title: "Notifications", desc: "Send messages visible to signed-in students.", href: "/admin/notifications" },
 ];
 

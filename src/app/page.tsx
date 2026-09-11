@@ -389,7 +389,9 @@ export default function Home() {
               ...previous,
               [section]: {
                 entries: allEntries,
-                total: allEntries.length,
+                // The leaderboard query intentionally returns only five rows.
+                // Keep the real attempt count from daily_section_stats below.
+                total: Math.max(previous[section].total, allEntries.length),
               },
             }));
 
@@ -410,6 +412,23 @@ export default function Home() {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
+  }, [date]);
+
+  // The leaderboard itself is capped at five reads. These three tiny counter
+  // documents provide the true denominator without loading every entry.
+  useEffect(() => {
+    const unsubscribers = (["quant", "varc", "dilr"] as Section[]).map((section) => onSnapshot(
+      doc(db, "daily_section_stats", `${date}_${section}`),
+      (snapshot) => setLeaderboards((previous) => ({
+        ...previous,
+        [section]: {
+          ...previous[section],
+          total: Math.max(Number(snapshot.data()?.count || 0), previous[section].entries.length),
+        },
+      })),
+      (error) => console.error(`Could not load ${section} attempt count:`, error)
+    ));
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [date]);
 
   useEffect(() => onSnapshot(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5)), (snapshot) => {
@@ -737,7 +756,7 @@ export default function Home() {
                         />
 
                         <h3 className="font-display text-[16px] font-bold">
-                          Top 5
+                          Top 5 / {leaderboard.total} attempters
                         </h3>
                       </div>
 
