@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Flame,
@@ -20,13 +20,15 @@ import {
   LockKeyhole,
   Trophy,
   Loader2,
-  Users,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 import {
   collection,
   doc,
+  getDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -36,6 +38,7 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
+import { useStudentStreak } from "@/components/StudentStreakProvider";
 
 const features = [
   {
@@ -165,7 +168,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [practiceChooserOpen, setPracticeChooserOpen] = useState(false);
-  const [streak, setStreak] = useState(0);
+  const streak = useStudentStreak();
 
   const [attempts, setAttempts] = useState<
     Record<Section, Attempt | null>
@@ -184,6 +187,7 @@ export default function Home() {
   });
 
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
   const [streakLeaders, setStreakLeaders] = useState<StreakEntry[]>([]);
   const [dailyReads, setDailyReads] = useState<DailyRead[]>([]);
   const [today, setToday] = useState(todayIST());
@@ -212,53 +216,15 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
-  /*
-   * --------------------------------------------------
-   * LIVE USER STREAK
-   * --------------------------------------------------
-   */
-
   useEffect(() => {
-    if (!user) {
-      setStreak(0);
-      return;
-    }
-
-    const streakRef = doc(db, "user_streaks", user.uid);
-
-    return onSnapshot(
-      streakRef,
-      (snap) => {
-        if (!snap.exists()) {
-          setStreak(0);
-          return;
-        }
-
-        const currentStreak = Number(snap.data().currentStreak ?? 0);
-        setStreak(
-          Number.isFinite(currentStreak) && currentStreak >= 0
-            ? currentStreak
-            : 0
-        );
-      },
-      (error) => {
-        console.error("Could not listen to user streak:", error);
-        setStreak(0);
-      }
-    );
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    return onSnapshot(
-      query(collection(db, "daily_reads"), where("published", "==", true)),
-      (snapshot) => setDailyReads(snapshot.docs
-        .map((item) => ({ id: item.id, ...item.data() }) as DailyRead)
-        .filter((read) => read.publishedFor ? read.publishedFor === today : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(read.createdAt?.toDate?.() || new Date(0)) === today)
-        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-        .slice(0, 6)),
-      (error) => console.error("Could not load Daily Reads:", error)
-    );
+    if (!user) { setDailyReads([]); return; }
+    let active = true;
+    // A current-date equality query replaces the former unbounded listener
+    // over every published read. The page only displays today's six reads.
+    getDocs(query(collection(db, "daily_reads"), where("published", "==", true), where("publishedFor", "==", today), limit(6)))
+      .then((snapshot) => { if (active) setDailyReads(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as DailyRead)); })
+      .catch((error) => console.error("Could not load Daily Reads:", error));
+    return () => { active = false; };
   }, [user, today]);
 
   /*
@@ -348,9 +314,9 @@ export default function Home() {
           "entries"
         );
 
-        return onSnapshot(
+        return (() => { void getDocs(
           query(entriesRef, orderBy("score", "desc"), limit(5)),
-          (snapshot) => {
+        ).then((snapshot) => {
             const allEntries: LeaderboardEntry[] = snapshot.docs.map(
               (entryDoc) => {
                 const data = entryDoc.data();
@@ -396,29 +362,28 @@ export default function Home() {
             }));
 
             setLeaderboardLoading(false);
-          },
-          (error) => {
+          }, (error) => {
             console.error(
               `Could not listen to ${section} leaderboard:`,
               error
             );
 
             setLeaderboardLoading(false);
-          }
-        );
+          }); return () => {}; })();
       }
     );
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [date]);
+  }, [date, leaderboardRefresh]);
 
   // The leaderboard itself is capped at five reads. These three tiny counter
   // documents provide the true denominator without loading every entry.
   useEffect(() => {
-    const unsubscribers = (["quant", "varc", "dilr"] as Section[]).map((section) => onSnapshot(
+    const unsubscribers = (["quant", "varc", "dilr"] as Section[]).map((section) => (() => { void getDoc(
       doc(db, "daily_section_stats", `${date}_${section}`),
+    ).then(
       (snapshot) => setLeaderboards((previous) => ({
         ...previous,
         [section]: {
@@ -427,9 +392,9 @@ export default function Home() {
         },
       })),
       (error) => console.error(`Could not load ${section} attempt count:`, error)
-    ));
+    ); return () => {}; })());
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [date]);
+  }, [date, leaderboardRefresh]);
 
   useEffect(() => onSnapshot(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5)), (snapshot) => {
     const entries = snapshot.docs.map((item) => ({ userId: String(item.data().userId || item.id), displayName: String(item.data().displayName || ""), email: String(item.data().email || ""), currentStreak: Number(item.data().currentStreak || 0) }));
@@ -726,15 +691,14 @@ export default function Home() {
             </h2>
 
             <p className="mt-1.5 text-sm text-muted">
-              Rankings update automatically after every completed
-              section.
+              Rankings are updated when this page opens. Refresh for the
+              latest completed attempts.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-            <Users size={15} />
-            Live leaderboard
-          </div>
+          <button type="button" onClick={() => setLeaderboardRefresh((value) => value + 1)} disabled={leaderboardLoading} className="inline-flex items-center gap-2 rounded-full border border-brand px-3 py-2 text-xs font-semibold text-brand-darker disabled:opacity-50">
+            <RefreshCw size={14} className={leaderboardLoading ? "animate-spin" : ""} /> Refresh rankings
+          </button>
         </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
@@ -765,9 +729,7 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand-darker">
-                      Live scores
-                    </span>
+                    <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand-darker">Top scores</span>
                   </div>
 
                   {leaderboardLoading ? (

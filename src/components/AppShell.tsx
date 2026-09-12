@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import Footer from "./Footer";
 import Header from "./Header";
 import Toast from "./Toast";
+import { StudentStreakProvider } from "./StudentStreakProvider";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -28,10 +29,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isMockTab) return <><main className="flex-1">{children}</main><Toast /></>;
 
-  return <>
+  return <StudentStreakProvider>
     <Header />
     <main className="flex-1">{showBack && <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8"><button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted transition hover:text-brand-darker"><ArrowLeft size={16} /> Back</button></div>}{children}</main>
     <Footer />
     <Toast />
-  </>;
+  </StudentStreakProvider>;
 }

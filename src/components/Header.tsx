@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import Logo from "./Logo";
 import { auth, db } from "@/lib/firebase/client";
 import { isAdminUser } from "@/lib/firebase/profile";
 import { signOutUser } from "@/lib/firebase/auth";
+import { useStudentStreak } from "./StudentStreakProvider";
 
 const nav = [
   {
@@ -96,7 +97,7 @@ export default function Header() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [streak, setStreak] = useState(0);
+  const streak = useStudentStreak();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<{ id: string; text: string; createdAt?: { toMillis?: () => number } }[]>([]);
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
@@ -118,20 +119,11 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    if (!user) {
-      setStreak(0);
-      return;
-    }
-
-    void getDoc(doc(db, "user_streaks", user.uid)).then((snap) => setStreak(Number(snap.data()?.currentStreak ?? 0)));
-  }, [user]);
-
-  useEffect(() => {
     if (!user) return;
     const readKey = `achievers-read-notifications-${user.uid}`;
     const welcomeId = `welcome-${user.uid}`;
     const saved = JSON.parse(localStorage.getItem(readKey) || "[]") as string[];
-    void getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"))).then((snapshot) => {
+    void getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(30))).then((snapshot) => {
       setReadNotifications(saved);
       const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = snapshot.docs.map((item) => ({ id: item.id, text: String(item.data().text || ""), createdAt: item.data().createdAt }));
       if (!localStorage.getItem(welcomeId)) {
