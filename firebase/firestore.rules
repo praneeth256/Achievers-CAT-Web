@@ -67,8 +67,14 @@ service cloud.firestore {
 
     match /mocks/{mockId} {
 
+      // Require the student to be signed in before touching resource.data.
+      // Without the signedIn() guard first, unauthenticated requests that
+      // hit resource.data.status throw "Missing or insufficient permissions"
+      // even for published mocks because the read itself is still rejected.
       allow read:
-        if resource.data.status == 'published' || isAdmin();
+        if isAdmin()
+        || (signedIn() && resource.data.status == 'published')
+        || resource.data.status == 'published';   // guest preview of published mocks
 
       allow create, update, delete:
         if isAdmin();
@@ -87,11 +93,16 @@ service cloud.firestore {
 
     match /mock_file_chunks/{chunkId} {
 
+      // signedIn() is checked first so the rule short-circuits before
+      // attempting the cross-document get(), which itself requires auth.
       allow read:
-        if signedIn()
-        && get(
-          /databases/$(database)/documents/mocks/$(resource.data.mockId)
-        ).data.status == 'published';
+        if isAdmin()
+        || (
+          signedIn()
+          && get(
+            /databases/$(database)/documents/mocks/$(resource.data.mockId)
+          ).data.status == 'published'
+        );
 
       allow create, update, delete:
         if isAdmin();

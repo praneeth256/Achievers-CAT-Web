@@ -271,7 +271,21 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           ]);
         }
         setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source, savedAttempt)); setStatus("loading");
-      } catch (error) { setMessage(error instanceof Error ? error.message : "Could not open this mock."); setStatus("error"); }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "";
+        // Firestore returns a generic "Missing or insufficient permissions."
+        // for any auth/rules failure. Translate it to something actionable.
+        const isPermissions =
+          msg.toLowerCase().includes("permission") ||
+          msg.toLowerCase().includes("insufficient") ||
+          (error as any)?.code === "permission-denied";
+        setMessage(
+          isPermissions
+            ? "You don't have access to this mock. Please sign in and try again."
+            : msg || "Could not open this mock."
+        );
+        setStatus("error");
+      }
     })();
   }, [mockId, user]);
 
@@ -404,7 +418,28 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
 
   if (authLoading) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Restoring your session…</div>;
   if (!user) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Sign in to open this mock</h1><Link href={`/login?returnTo=${encodeURIComponent(`/mock-view/${mockId || ""}`)}`} className="mt-6 inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white">Continue with Google</Link></div>;
-  if (status === "error") return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="font-display text-2xl font-bold">Could not open mock</h1><p className="mt-2 text-sm text-danger">{message}</p></div>;
+  if (status === "error") return (
+    <div className="mx-auto max-w-xl px-4 py-20 text-center">
+      <h1 className="font-display text-2xl font-bold">Could not open mock</h1>
+      <p className="mt-2 text-sm text-danger">{message}</p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        {(message.toLowerCase().includes("sign in") || message.toLowerCase().includes("access")) && (
+          <Link
+            href={`/login?returnTo=${encodeURIComponent(`/mock-view/${mockId || ""}`)}`}
+            className="inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+          >
+            Sign in and retry
+          </Link>
+        )}
+        <Link
+          href="/mocks"
+          className="inline-flex rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-brand-tint"
+        >
+          Back to Mocks
+        </Link>
+      </div>
+    </div>
+  );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
   const percentile = attempt?.status === "submitted" ? (typeof attempt.percentile === "number" && attempt.percentile > 0 ? attempt.percentile : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty)) : null;
   return <div className="min-h-screen bg-surface-muted"><div className="flex items-center justify-end border-b border-border bg-white px-4 py-2"><div className="flex items-center gap-2 text-sm font-medium text-foreground">{percentile !== null && <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-darker">Score {attempt?.score} · {percentile.toFixed(2)} %ile</span>}{user.photoURL ? <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-darker"><UserRound size={16} /></span>}<span>{user.displayName || "Student"}</span></div></div><iframe ref={frameRef} srcDoc={html} onLoad={restoreAnalysis} sandbox="allow-scripts allow-forms" title={mock?.name || "Mock"} className="min-h-[calc(100vh-49px)] w-full border-0" /></div>;
