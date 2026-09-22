@@ -22,6 +22,7 @@ import {
   Loader2,
   X,
   RefreshCw,
+  BarChart3,
 } from "lucide-react";
 
 import {
@@ -431,470 +432,385 @@ export default function Home() {
   }
 
   return (
-    <div>
-      <div className="overflow-hidden border-b border-brand/20 bg-brand-tint py-2">
-        <div className="announcement-scroll w-max whitespace-nowrap px-4 text-sm font-semibold text-brand-darker">
-          ACHIEVERS CAT is everything you need for CAT — join the WhatsApp group for more updates: {" "}
-          <a href="https://chat.whatsapp.com/L59MZiqz4ueKOSEyZ06TxD" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-            https://chat.whatsapp.com/L59MZiqz4ueKOSEyZ06TxD
-          </a>
-        </div>
-      </div>
-      <div className="border-b border-brand/20 bg-gradient-to-r from-brand-tint via-white to-brand-tint px-4 py-4">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/25"><CalendarDays size={21} /></span>
-          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-center gap-x-2 sm:justify-between"><p className="font-display text-lg font-bold text-foreground">CAT 2026 Countdown</p><p className="font-display text-xl font-bold text-brand-darker"><span className="text-2xl">{catDaysRemaining}</span> days left</p></div><p className="mt-0.5 text-xs font-medium text-muted">CAT exam day · 29 November — make today&apos;s practice count.</p><div className="mt-2 h-2.5 overflow-hidden rounded-full bg-brand/10"><div className="h-full rounded-full bg-gradient-to-r from-brand to-emerald-400 transition-all" style={{ width: `${catProgress}%` }} /></div></div>
-        </div>
-      </div>
-      {/* --------------------------------------------------
-          HERO
-      -------------------------------------------------- */}
+    <div className="relative overflow-x-hidden">
 
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-8 sm:px-6 md:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:px-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-brand-tint px-3 py-1 text-[12.5px] font-medium text-brand-darker">
-              <Flame size={13} className="text-flame" />
-              Built for CAT 2026 aspirants
+      {/* ── Decorative blobs ─────────────────────────────── */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="blob-float absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-brand/10 blur-[100px]" />
+        <div className="blob-float-delayed absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-brand/8 blur-[90px]" />
+        <div className="blob-float absolute left-1/2 top-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-emerald-200/20 blur-[80px]" />
+      </div>
+
+      {/* ── WhatsApp announcement glass pill ─────────────── */}
+      <div className="flex justify-center px-4 pb-2 pt-2">
+        <div className="glass-pill-announce flex w-full max-w-3xl items-center gap-2.5 overflow-hidden rounded-full px-4 py-2">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#25d366] text-white">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a13 13 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </span>
+          <p className="min-w-0 flex-1 overflow-hidden">
+            <span className="announcement-scroll inline-block whitespace-nowrap text-[12.5px] font-medium text-brand-darker">
+              ACHIEVERS CAT is everything you need for CAT — join the WhatsApp group:{" "}
+              <a href="https://chat.whatsapp.com/JrJ0LM4eeuYL48bijRpoqB" target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">
+                https://chat.whatsapp.com/JrJ0LM4eeuYL48bijRpoqB
+              </a>
+            </span>
+          </p>
+          <ArrowRight size={14} className="shrink-0 text-brand-darker/60" />
+        </div>
+      </div>
+
+      {/* ── CAT 2026 Countdown glass card ─────────────────── */}
+      <div className="px-4 pb-4 sm:px-6 lg:px-8">
+        <div className="glass-card mx-auto max-w-3xl p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-lg shadow-brand/30">
+              <CalendarDays size={22} />
             </div>
-
-            <h1 className="mt-5 font-display text-[2.5rem] font-bold leading-[1.08] tracking-tight text-foreground sm:text-[3.2rem]">
-              Prepare smarter.
-              <br />
-              Practice{" "}
-              <span className="text-brand-dark">
-                consistently
-              </span>
-              .
-            </h1>
-
-            <p className="mt-5 max-w-md text-[16px] leading-relaxed text-muted">
-              Daily questions, sectional and full CAT-pattern mocks,
-              and study material — with your streak, scores and
-              scorecards tracked in one place.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => setPracticeChooserOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-[14.5px] font-semibold text-white shadow-sm shadow-brand/30 transition hover:bg-brand-dark"
-              >
-                Start Practising
-                <ArrowRight size={16} />
-              </button>
-
-              <Link
-                href="/mocks"
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-[14.5px] font-semibold text-foreground transition hover:border-brand hover:text-brand-darker"
-              >
-                Attempt a Mock
-              </Link>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <div>
+                  <p className="font-display text-[15px] font-bold text-foreground">CAT 2026 Countdown</p>
+                  <p className="text-[12px] text-muted">CAT exam day · 29 November — make today&apos;s practice count.</p>
+                </div>
+                <div className="glass-card-solid flex items-baseline gap-1.5 rounded-2xl px-4 py-2">
+                  <span className="font-display text-[28px] font-black leading-none text-foreground">{catDaysRemaining}</span>
+                  <span className="text-[13px] font-semibold text-muted">days left</span>
+                </div>
+              </div>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-brand/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand to-emerald-400 shadow-sm shadow-brand/30 transition-all duration-700"
+                  style={{ width: `${catProgress}%` }}
+                />
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* --------------------------------------------------
-              TODAY'S TARGET
-          -------------------------------------------------- */}
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 pb-12 pt-4 sm:px-6 lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:gap-10 lg:px-8">
 
-          <div className="relative">
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-xl shadow-black/[0.04] sm:p-6">
-              <div className="flex items-center justify-between">
-                <p className="font-display text-[15px] font-semibold text-foreground">
-                  Today&apos;s Target
-                </p>
+        {/* LEFT: heading + CTA + mini feature cards */}
+        <div className="fade-up">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-tint px-3 py-1.5 text-[12.5px] font-medium text-brand-darker">
+            <Flame size={13} className="text-flame" />
+            Built for CAT 2026 aspirants
+          </div>
 
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[12px] font-semibold text-brand-darker">
-                  <Flame size={12} className="text-flame" />
-                  {streak}-day streak
+          <h1 className="mt-5 font-display text-[2.6rem] font-black leading-[1.06] tracking-tight text-foreground sm:text-[3.4rem]">
+            Prepare smarter.
+            <br />
+            Practice{" "}
+            <span className="bg-gradient-to-r from-brand to-brand-dark bg-clip-text text-transparent">
+              consistently.
+            </span>
+          </h1>
+
+          <p className="mt-5 max-w-md text-[15.5px] leading-relaxed text-muted">
+            Daily questions, sectional and full CAT-pattern mocks, and study
+            material — with your streak, scores and scorecards tracked in one
+            place.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setPracticeChooserOpen(true)}
+              className="glass-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]"
+            >
+              Start Practising
+              <ArrowRight size={16} />
+            </button>
+
+            <Link
+              href="/mocks"
+              className="glass-btn-secondary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]"
+            >
+              Attempt a Mock
+            </Link>
+          </div>
+
+          {/* Mini feature pills */}
+          <div className="mt-10 grid grid-cols-3 gap-3 sm:max-w-sm">
+            {[
+              { icon: Target, title: "Practice daily", sub: "Build consistency" },
+              { icon: BarChart3, title: "Track progress", sub: "See your growth" },
+              { icon: Trophy, title: "Achieve your best", sub: "Be CAT ready" },
+            ].map((f) => (
+              <div key={f.title} className="glass-card flex flex-col items-center gap-1.5 rounded-2xl p-3 text-center">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-brand-tint text-brand-dark">
+                  <f.icon size={15} />
+                </div>
+                <p className="text-[11px] font-semibold leading-tight text-foreground">{f.title}</p>
+                <p className="text-[10.5px] leading-tight text-muted">{f.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT: Today's Target glass card */}
+        <div className="fade-up-delay-2 relative mt-10 lg:mt-0">
+          <div className="glass-card-solid p-5 sm:p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <p className="font-display text-[15px] font-bold text-foreground">Today&apos;s Target</p>
+              <Link href="/daily" className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[12px] font-semibold text-brand-darker hover:bg-brand/15">
+                <Flame size={12} className="text-flame" />
+                {streak}-day streak
+                <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {/* Progress ring */}
+            <div className="mt-4 flex items-center gap-4">
+              <div className="relative h-16 w-16 shrink-0">
+                <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(25,200,107,0.12)" strokeWidth="3.5" />
+                  <circle
+                    cx="18" cy="18" r="15.5" fill="none"
+                    stroke="url(#ring-grad)"
+                    strokeWidth="3.5"
+                    strokeDasharray="97.4"
+                    strokeDashoffset={97.4 - (97.4 * targetPercentage) / 100}
+                    strokeLinecap="round"
+                  />
+                  <defs>
+                    <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#1fd97a" />
+                      <stop offset="100%" stopColor="#14a857" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center font-display text-[13px] font-black text-foreground">
+                  {completedCount}/3
                 </span>
               </div>
-
-              <div className="mt-4 flex items-center gap-4">
-                <div className="relative h-16 w-16 shrink-0">
-                  <svg
-                    viewBox="0 0 36 36"
-                    className="h-16 w-16 -rotate-90"
-                  >
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.5"
-                      fill="none"
-                      stroke="#e6ebe8"
-                      strokeWidth="3.5"
-                    />
-
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.5"
-                      fill="none"
-                      stroke="#22C55E"
-                      strokeWidth="3.5"
-                      strokeDasharray="97.4"
-                      strokeDashoffset={
-                        97.4 -
-                        (97.4 * targetPercentage) / 100
-                      }
-                      strokeLinecap="round"
-                    />
-                  </svg>
-
-                  <span className="absolute inset-0 flex items-center justify-center font-display text-[13px] font-bold text-foreground">
-                    {completedCount}/3
-                  </span>
-                </div>
-
-                <p className="text-[13.5px] leading-snug text-muted">
-                  {completedCount === 3
-                    ? "You completed all three sections today. Great work!"
-                    : "Complete today's target to keep your streak alive."}
-                </p>
-              </div>
-
-              <ul className="mt-5 space-y-2.5 border-t border-border pt-4">
-                {/* QUANT */}
-
-                <li
-                  className={`flex items-center justify-between gap-3 text-[14px] ${
-                    attempts.quant
-                      ? "text-foreground"
-                      : "text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {attempts.quant ? (
-                      <CheckCircle2
-                        size={17}
-                        className="shrink-0 text-brand"
-                      />
-                    ) : (
-                      <Circle
-                        size={17}
-                        className="shrink-0 text-border"
-                      />
-                    )}
-
-                    <span>Question of the Day</span>
-                  </div>
-
-                  {attempts.quant && (
-                    <span className="font-semibold text-brand-darker">
-                      {attempts.quant.score}/
-                      {attempts.quant.total * 3}
-                    </span>
-                  )}
-                </li>
-
-                {/* VARC */}
-
-                <li
-                  className={`flex items-center justify-between gap-3 text-[14px] ${
-                    attempts.varc
-                      ? "text-foreground"
-                      : "text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {attempts.varc ? (
-                      <CheckCircle2
-                        size={17}
-                        className="shrink-0 text-brand"
-                      />
-                    ) : (
-                      <Circle
-                        size={17}
-                        className="shrink-0 text-border"
-                      />
-                    )}
-
-                    <span>RC / VA of the Day</span>
-                  </div>
-
-                  {attempts.varc && (
-                    <span className="font-semibold text-brand-darker">
-                      {attempts.varc.score}/
-                      {attempts.varc.total * 3}
-                    </span>
-                  )}
-                </li>
-
-                {/* DILR */}
-
-                <li
-                  className={`flex items-center justify-between gap-3 text-[14px] ${
-                    attempts.dilr
-                      ? "text-foreground"
-                      : "text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {attempts.dilr ? (
-                      <CheckCircle2
-                        size={17}
-                        className="shrink-0 text-brand"
-                      />
-                    ) : (
-                      <Circle
-                        size={17}
-                        className="shrink-0 text-border"
-                      />
-                    )}
-
-                    <span>DILR Set of the Day</span>
-                  </div>
-
-                  {attempts.dilr && (
-                    <span className="font-semibold text-brand-darker">
-                      {attempts.dilr.score}/
-                      {attempts.dilr.total * 3}
-                    </span>
-                  )}
-                </li>
-              </ul>
-
-              <Link
-                href="/daily"
-                className="mt-5 flex w-full items-center justify-center rounded-full bg-brand px-4 py-2.5 text-[13.5px] font-semibold text-white transition hover:bg-brand-dark"
-              >
+              <p className="text-[13.5px] leading-snug text-muted">
                 {completedCount === 3
-                  ? "View Today's Practice"
-                  : "Complete Today's Target"}
-              </Link>
-              <div className="mt-4 border-t border-border pt-4"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-wide text-brand-dark">Top 5 streaks</p><Flame size={14} className="text-flame" /></div>{rankedStreakLeaders.length ? <div className="mt-2 space-y-1.5">{rankedStreakLeaders.map((entry, index) => <div key={entry.userId} className="flex items-center justify-between text-xs"><span className="truncate text-muted">#{index + 1} {displayStreakName(entry)}</span><span className="font-bold text-brand-darker">{entry.currentStreak} days</span></div>)}</div> : <p className="mt-2 text-xs text-muted">Start today to lead the streak board.</p>}</div>
+                  ? "You completed all three sections today. Great work!"
+                  : "Complete today\u2019s target to keep your streak alive."}
+              </p>
+            </div>
+
+            {/* Target items */}
+            <ul className="mt-5 space-y-2.5 border-t border-brand/10 pt-4">
+              {[
+                { key: "quant" as Section, label: "Question of the Day" },
+                { key: "varc" as Section, label: "RC / VA of the Day" },
+                { key: "dilr" as Section, label: "DILR Set of the Day" },
+              ].map(({ key, label }) => (
+                <li key={key} className={`flex items-center justify-between gap-3 text-[13.5px] ${attempts[key] ? "text-foreground" : "text-muted"}`}>
+                  <div className="flex items-center gap-2.5">
+                    {attempts[key] ? (
+                      <CheckCircle2 size={16} className="shrink-0 text-brand" />
+                    ) : (
+                      <Circle size={16} className="shrink-0 text-border" />
+                    )}
+                    <span>{label}</span>
+                  </div>
+                  {attempts[key] && (
+                    <span className="font-semibold text-brand-darker">
+                      {attempts[key]!.score}/{attempts[key]!.total * 3}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {/* CTA */}
+            <Link
+              href="/daily"
+              className="glass-btn-primary mt-5 flex w-full items-center justify-center gap-2 py-3 text-[14px]"
+            >
+              {completedCount === 3 ? "View Today\u2019s Practice" : "Complete Today\u2019s Target"}
+              <ArrowRight size={15} />
+            </Link>
+
+            {/* Top 5 Streaks */}
+            <div className="mt-4 border-t border-brand/10 pt-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-dark">Top 5 Streaks</p>
+                <Flame size={13} className="text-flame" />
+              </div>
+              {rankedStreakLeaders.length ? (
+                <div className="mt-2.5 space-y-1.5">
+                  {rankedStreakLeaders.map((entry, index) => (
+                    <div key={entry.userId} className="flex items-center justify-between text-[12.5px]">
+                      <span className="truncate text-muted">#{index + 1} {displayStreakName(entry)}</span>
+                      <span className="font-bold text-brand-darker">{entry.currentStreak} days</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-[12px] text-muted">Start today to lead the streak board.</p>
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <aside className="mx-auto max-w-2xl rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex items-center gap-2"><span className="rounded-xl bg-brand-tint p-2 text-brand-darker"><FileText size={19} /></span><div><p className="font-display text-lg font-bold">Daily Reads</p><p className="text-xs text-muted">Newspaper PDFs and essays</p></div></div>
-            {!user ? <Link href="/login?returnTo=%2F" className="mt-5 flex items-center justify-between rounded-xl border border-brand/20 bg-brand-tint p-4 transition hover:bg-brand/10"><div><p className="font-semibold text-brand-darker">Log in to access Daily Reads</p><p className="mt-1 text-xs text-muted">Curated reading for CAT preparation.</p></div><LockKeyhole size={19} className="shrink-0 text-brand-darker" /></Link> : dailyReads.length ? <div className="mt-5 space-y-3">{dailyReads.map((read) => <a key={read.id} href={read.url} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-3 rounded-xl border border-border p-3 transition hover:border-brand hover:bg-brand-tint"><div className="flex min-w-0 items-center gap-3"><span className="rounded-lg bg-surface-muted p-2 text-brand-darker"><FileText size={16} /></span><p className="truncate text-sm font-semibold">{read.title}</p></div><ExternalLink size={15} className="shrink-0 text-brand-darker" /></a>)}</div> : <p className="mt-5 rounded-xl bg-surface-muted p-4 text-sm text-muted">Today&apos;s reading will be published shortly.</p>}
-        </aside>
-      </section>
-
-      {/* --------------------------------------------------
-          LIVE LEADERBOARDS
-      -------------------------------------------------- */}
-
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-brand-dark">
-              Live Rankings
-            </p>
-
-            <h2 className="mt-1 font-display text-[26px] font-bold text-foreground">
-              Today&apos;s Top Performers
-            </h2>
-
-            <p className="mt-1.5 text-sm text-muted">
-              Rankings are updated when this page opens. Refresh for the
-              latest completed attempts.
-            </p>
+      {/* ── Daily Reads ─────────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+        <div className="glass-card mx-auto max-w-2xl p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-tint text-brand-darker">
+              <FileText size={18} />
+            </span>
+            <div>
+              <p className="font-display text-[16px] font-bold">Daily Reads</p>
+              <p className="text-[12px] text-muted">Newspaper PDFs and essays</p>
+            </div>
           </div>
-
-          <button type="button" onClick={() => setLeaderboardRefresh((value) => value + 1)} disabled={leaderboardLoading} className="inline-flex items-center gap-2 rounded-full border border-brand px-3 py-2 text-xs font-semibold text-brand-darker disabled:opacity-50">
-            <RefreshCw size={14} className={leaderboardLoading ? "animate-spin" : ""} /> Refresh rankings
-          </button>
-        </div>
-
-        <div className="mt-8 grid gap-5 lg:grid-cols-3">
-          {(["quant", "varc", "dilr"] as Section[]).map(
-            (section) => {
-              const leaderboard = leaderboards[section];
-
-              return (
-                <div
-                  key={section}
-                  className="rounded-2xl border border-border bg-white p-5 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Trophy
-                          size={18}
-                          className="text-brand-dark"
-                        />
-
-                        <h3 className="font-display text-[16px] font-bold">
-                          Top 5 / {leaderboard.total} attempters
-                        </h3>
-                      </div>
-
-                      <p className="mt-1 text-xs text-muted">
-                        {sectionInfo[section].title}
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand-darker">Top scores</span>
+          {!user ? (
+            <Link href="/login?returnTo=%2F" className="mt-5 flex items-center justify-between rounded-2xl border border-brand/15 bg-brand-tint/50 p-4 transition hover:bg-brand/10">
+              <div>
+                <p className="font-semibold text-brand-darker">Log in to access Daily Reads</p>
+                <p className="mt-1 text-[12px] text-muted">Curated reading for CAT preparation.</p>
+              </div>
+              <LockKeyhole size={18} className="shrink-0 text-brand-darker" />
+            </Link>
+          ) : dailyReads.length ? (
+            <div className="mt-5 space-y-2.5">
+              {dailyReads.map((read) => (
+                <a key={read.id} href={read.url} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-3 rounded-2xl border border-border/60 p-3 transition hover:border-brand/30 hover:bg-brand-tint/50">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="rounded-xl bg-brand-tint p-2 text-brand-darker">
+                      <FileText size={15} />
+                    </span>
+                    <p className="truncate text-[13.5px] font-semibold">{read.title}</p>
                   </div>
-
-                  {leaderboardLoading ? (
-                    <div className="flex items-center justify-center py-10">
-                      <Loader2
-                        size={20}
-                        className="animate-spin text-brand"
-                      />
-                    </div>
-                  ) : leaderboard.entries.length === 0 ? (
-                    <div className="py-10 text-center">
-                      <p className="text-sm font-semibold text-foreground">
-                        No attempts yet
-                      </p>
-
-                      <p className="mt-1 text-xs text-muted">
-                        Be the first to attempt this section.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-5 space-y-2">
-                      {leaderboard.entries.map(
-                        (entry, index) => (
-                          <div
-                            key={entry.userId}
-                            className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
-                          >
-                            <div
-                              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                                index === 0
-                                  ? "bg-brand text-white"
-                                  : "bg-surface-muted text-muted"
-                              }`}
-                            >
-                              {index + 1}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[13px] font-semibold text-foreground">
-                                {getDisplayName(entry)}
-                              </p>
-
-                              <p className="text-[11px] text-muted">
-                                {entry.correct} correct ·{" "}
-                                {entry.wrong} wrong
-                              </p>
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-display text-sm font-bold text-brand-darker">
-                                {formatScore(entry.score)}
-                              </p>
-
-                              <p className="text-[10px] text-muted">
-                                marks
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            }
+                  <ExternalLink size={14} className="shrink-0 text-brand-darker/70" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-5 rounded-2xl bg-brand-tint/40 p-4 text-[13px] text-muted">Today&apos;s reading will be published shortly.</p>
           )}
         </div>
       </section>
 
-      {/* --------------------------------------------------
-          FEATURE GRID
-      -------------------------------------------------- */}
+      {/* ── Live Leaderboards ────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-dark">Live Rankings</p>
+            <h2 className="mt-1 font-display text-[24px] font-bold text-foreground">Today&apos;s Top Performers</h2>
+            <p className="mt-1 text-[13px] text-muted">Rankings refresh when the page opens. Refresh for the latest.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLeaderboardRefresh((v) => v + 1)}
+            disabled={leaderboardLoading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-tint px-3 py-2 text-[12px] font-semibold text-brand-darker disabled:opacity-50 hover:bg-brand/10"
+          >
+            <RefreshCw size={13} className={leaderboardLoading ? "animate-spin" : ""} />
+            Refresh rankings
+          </button>
+        </div>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="font-display text-[26px] font-bold text-foreground">
-          Everything you need, in one place
-        </h2>
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          {(["quant", "varc", "dilr"] as Section[]).map((section) => {
+            const leaderboard = leaderboards[section];
+            return (
+              <div key={section} className="glass-card p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Trophy size={17} className="text-brand-dark" />
+                      <h3 className="font-display text-[15px] font-bold">Top 5 / {leaderboard.total} attempters</h3>
+                    </div>
+                    <p className="mt-0.5 text-[12px] text-muted">{sectionInfo[section].title}</p>
+                  </div>
+                  <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[10.5px] font-bold text-brand-darker">Top scores</span>
+                </div>
 
+                {leaderboardLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 size={20} className="animate-spin text-brand" />
+                  </div>
+                ) : leaderboard.entries.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <p className="text-[13px] font-semibold text-foreground">No attempts yet</p>
+                    <p className="mt-1 text-[11.5px] text-muted">Be the first to attempt this section.</p>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-2">
+                    {leaderboard.entries.map((entry, index) => (
+                      <div key={entry.userId} className="flex items-center gap-3 rounded-xl border border-border/60 bg-white/50 px-3 py-2.5">
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${index === 0 ? "bg-brand text-white shadow-sm shadow-brand/30" : "bg-brand-tint text-brand-darker"}`}>
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12.5px] font-semibold text-foreground">{getDisplayName(entry)}</p>
+                          <p className="text-[11px] text-muted">{entry.correct} correct · {entry.wrong} wrong</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display text-[13px] font-bold text-brand-darker">{formatScore(entry.score)}</p>
+                          <p className="text-[10px] text-muted">marks</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Feature Grid ─────────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <h2 className="font-display text-[24px] font-bold text-foreground">Everything you need, in one place</h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
             <Link
               key={f.href}
               href={f.href}
-              className="group rounded-2xl border border-border bg-white p-5 transition hover:border-brand hover:shadow-lg hover:shadow-brand/[0.06]"
+              className="glass-card group p-5 transition-transform hover:-translate-y-1 hover:shadow-xl hover:shadow-brand/[0.08]"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-tint text-brand-darker">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-tint to-brand/10 text-brand-dark">
                 <f.icon size={19} />
               </div>
-
-              <p className="mt-4 font-display text-[15.5px] font-semibold text-foreground">
-                {f.title}
-              </p>
-
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-                {f.desc}
-              </p>
-
-              <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-dark opacity-0 transition group-hover:opacity-100">
-                Explore
-                <ArrowRight size={13} />
+              <p className="mt-4 font-display text-[15px] font-semibold text-foreground">{f.title}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{f.desc}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand-dark opacity-0 transition group-hover:opacity-100">
+                Explore <ArrowRight size={12} />
               </span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* --------------------------------------------------
-          HOW IT WORKS
-      -------------------------------------------------- */}
-
-      <section className="border-y border-border bg-surface-muted">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="font-display text-[26px] font-bold text-foreground">
-            How it works
-          </h2>
-
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            {steps.map((s) => (
-              <div
-                key={s.n}
-                className="rounded-2xl bg-white p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white">
-                    <s.icon size={18} />
-                  </div>
-
-                  <span className="font-display text-[13px] font-semibold text-border">
-                    {s.n}
-                  </span>
+      {/* ── How it works ─────────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <h2 className="font-display text-[24px] font-bold text-foreground">How it works</h2>
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {steps.map((s) => (
+            <div key={s.n} className="glass-card p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-md shadow-brand/25">
+                  <s.icon size={18} />
                 </div>
-
-                <p className="mt-4 font-display text-[15.5px] font-semibold text-foreground">
-                  {s.title}
-                </p>
-
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-                  {s.desc}
-                </p>
+                <span className="font-display text-[13px] font-semibold text-border">{s.n}</span>
               </div>
-            ))}
-          </div>
+              <p className="mt-4 font-display text-[15px] font-semibold text-foreground">{s.title}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{s.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* --------------------------------------------------
-          CTA
-      -------------------------------------------------- */}
-
-      <section className={`mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 ${user ? "hidden" : ""}`}>
-        <div className="flex flex-col items-start justify-between gap-6 rounded-2xl bg-foreground px-6 py-10 sm:flex-row sm:items-center sm:px-10">
+      {/* ── CTA (logged-out only) ────────────────────────── */}
+      <section className={`mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 ${user ? "hidden" : ""}`}>
+        <div className="glass-card-green flex flex-col items-start justify-between gap-6 p-8 sm:flex-row sm:items-center sm:p-10">
           <div>
-            <p className="font-display text-[22px] font-bold text-white">
-              Ready to start your streak?
-            </p>
-
-            <p className="mt-1.5 max-w-md text-[14px] text-white/70">
-              Sign in with Google and attempt today&apos;s daily
-              practice.
-            </p>
+            <p className="font-display text-[22px] font-bold text-foreground">Ready to start your streak?</p>
+            <p className="mt-1.5 max-w-md text-[14px] text-muted">Sign in with Google and attempt today&apos;s daily practice.</p>
           </div>
-
           <Link
             href="/login"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand px-5 py-3 text-[14.5px] font-semibold text-white transition hover:bg-brand-dark"
+            className="glass-btn-primary inline-flex shrink-0 items-center gap-2 px-6 py-3 text-[14.5px]"
           >
             Continue with Google
             <ArrowRight size={16} />
@@ -902,9 +818,10 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Practice chooser modal ───────────────────────── */}
       {practiceChooserOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 px-4 py-6 backdrop-blur-sm"
           role="presentation"
           onClick={() => setPracticeChooserOpen(false)}
         >
@@ -912,28 +829,30 @@ export default function Home() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="practice-chooser-title"
-            className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
-            onClick={(event) => event.stopPropagation()}
+            className="glass-card-solid w-full max-w-xl p-5 sm:p-7"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-brand-dark">Choose your practice</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-dark">Choose your practice</p>
                 <h2 id="practice-chooser-title" className="mt-1 font-display text-2xl font-bold text-foreground">What would you like to practise?</h2>
               </div>
-              <button type="button" onClick={() => setPracticeChooserOpen(false)} aria-label="Close practice choices" className="rounded-full p-2 text-muted transition hover:bg-surface-muted hover:text-foreground"><X size={19} /></button>
+              <button type="button" onClick={() => setPracticeChooserOpen(false)} aria-label="Close practice choices" className="rounded-full p-2 text-muted transition hover:bg-brand-tint hover:text-foreground">
+                <X size={19} />
+              </button>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <Link href="/practice" onClick={() => setPracticeChooserOpen(false)} className="group rounded-2xl border border-border p-5 transition hover:border-brand hover:bg-brand-tint">
+              <Link href="/practice" onClick={() => setPracticeChooserOpen(false)} className="glass-card group p-5 transition hover:-translate-y-0.5">
                 <BookOpenText className="text-brand" size={22} />
-                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Practice questions</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">Choose a section and topic to practise chapter-wise questions.</p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">Start practice <ArrowRight size={14} /></span>
+                <h3 className="mt-4 font-display text-[16px] font-semibold text-foreground">Practice questions</h3>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted">Choose a section and topic to practise chapter-wise questions.</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-dark">Start practice <ArrowRight size={13} /></span>
               </Link>
-              <Link href="/practice/pyqs" onClick={() => setPracticeChooserOpen(false)} className="group rounded-2xl border border-border p-5 transition hover:border-brand hover:bg-brand-tint">
+              <Link href="/practice/pyqs" onClick={() => setPracticeChooserOpen(false)} className="glass-card group p-5 transition hover:-translate-y-0.5">
                 <FileText className="text-brand" size={22} />
-                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">Topic-wise PYQs</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">Solve past-year CAT questions organised by section and topic.</p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">View PYQs <ArrowRight size={14} /></span>
+                <h3 className="mt-4 font-display text-[16px] font-semibold text-foreground">Topic-wise PYQs</h3>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted">Solve past-year CAT questions organised by section and topic.</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-dark">View PYQs <ArrowRight size={13} /></span>
               </Link>
             </div>
           </section>
