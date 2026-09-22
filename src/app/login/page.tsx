@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { signInWithGoogle } from "@/lib/firebase/auth";
+import { getGoogleRedirectResult, signInWithGoogle } from "@/lib/firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { logActivity } from "@/lib/firebase/activity";
@@ -10,37 +10,95 @@ import Logo from "@/components/Logo";
 import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  return <Suspense fallback={<div className="flex min-h-[70vh] items-center justify-center"><Loader2 className="animate-spin text-brand" /></div>}><LoginForm /></Suspense>;
+  return (
+    <Suspense fallback={<div className="flex min-h-[70vh] items-center justify-center"><Loader2 className="animate-spin text-brand" /></div>}>
+      <LoginForm />
+    </Suspense>
+  );
 }
 
 function LoginForm() {
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
+
+  const getDestination = () => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/daily";
+  };
+
+  const finishSignIn = async (user: import("firebase/auth").User) => {
+    await setDoc(doc(db, "profiles", user.uid), {
+      displayName: user.displayName || "",
+      email: user.email || "",
+      photoURL: user.photoURL || "",
+      lastLoginAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    void logActivity(user, "signin", "Signed in");
+    window.location.assign(getDestination());
+  };
+
+  // Capture result after signInWithRedirect (popup-blocked fallback)
+  useEffect(() => {
+    let cancelled = false;
+    getGoogleRedirectResult()
+      .then((result) => {
+        if (cancelled || !result) return;
+        setLoading(true);
+        return finishSignIn(result.user);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const code = (err as any)?.code as string | undefined;
+        // "no-current-user" just means no pending redirect — not an error
+        if (code && code !== "auth/no-current-user") {
+          setError(friendlyError(code));
+        }
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleGoogleSignIn() {
     setLoading(true);
     setError(null);
     try {
-      const returnTo = searchParams.get("returnTo");
-      const destination = returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/daily";
+      // If popup is blocked, signInWithGoogle falls back to redirect (navigates away)
+      const timeoutId = setTimeout(() => setRedirecting(true), 600);
       const { user } = await signInWithGoogle();
-      await setDoc(doc(db, "profiles", user.uid), {
-        displayName: user.displayName || "",
-        email: user.email || "",
-        photoURL: user.photoURL || "",
-        // Keep these timestamps on the profile rather than trying to infer
-        // them from activity rows in the admin dashboard.
-        lastLoginAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      void logActivity(user, "signin", "Signed in");
-      window.location.assign(destination);
+      clearTimeout(timeoutId);
+      await finishSignIn(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      const code = (err as any)?.code as string | undefined;
+      // popup-blocked already triggered a redirect — just keep the spinner
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+        setRedirecting(true);
+        return;
+      }
+      setError(friendlyError(code));
       setLoading(false);
     }
   }
+
+  /** Convert Firebase error codes to human-readable messages */
+  function friendlyError(code?: string): string {
+    switch (code) {
+      case "auth/network-request-failed":
+        return "Network error — please check your connection and try again.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please wait a moment and try again.";
+      case "auth/user-disabled":
+        return "This account has been disabled. Contact support.";
+      case "auth/cancelled-popup-request":
+        return "Another sign-in is already in progress. Please wait.";
+      default:
+        return "Google sign-in failed. Please try again.";
+    }
+  }
+
+  const isBusy = loading || redirecting;
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
@@ -55,15 +113,15 @@ function LoginForm() {
 
       <button
         onClick={handleGoogleSignIn}
-        disabled={loading}
+        disabled={isBusy}
         className="mt-8 flex cursor-pointer w-full items-center justify-center gap-3 rounded-full border border-border bg-white px-5 py-3 text-[14.5px] font-semibold text-foreground shadow-sm transition hover:border-brand hover:text-brand-darker disabled:opacity-60"
       >
-        {loading ? (
+        {isBusy ? (
           <Loader2 size={18} className="animate-spin text-brand" />
         ) : (
           <GoogleIcon />
         )}
-        Continue with Google
+        {redirecting ? "Redirecting to Google…" : "Continue with Google"}
       </button>
 
       {error && (
