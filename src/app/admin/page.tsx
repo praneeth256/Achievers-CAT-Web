@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Activity, ClipboardList, FileStack, FolderOpen, HelpCircle, LogIn, Users } from "lucide-react";
+import { Activity, ClipboardList, FileStack, FolderOpen, HelpCircle, LogIn, Mail, Users } from "lucide-react";
 import AdminGuard from "@/components/AdminGuard";
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -18,6 +18,7 @@ const sections = [
   { title: "Performance / Analytics", desc: "Review student attempts and test metrics.", href: "/admin/analytics" },
   { title: "Student Data", desc: "Search students and open their submitted tests, answers, scores, and daily-target progress.", href: "/admin/students" },
   { title: "Notifications", desc: "Send messages visible to signed-in students.", href: "/admin/notifications" },
+  { title: "Email Reminders", desc: "Send daily-target reminder emails to students via Gmail API with fair rotation (500/day max).", href: "/admin/email" },
 ];
 
 type UserActivity = { id: string; userName?: string; type?: string; detail?: string; createdAt?: { toDate?: () => Date } };

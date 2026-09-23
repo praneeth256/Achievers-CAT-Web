@@ -640,5 +640,18 @@ service cloud.firestore {
       allow read, create, update, delete:
         if isAdmin();
     }
+
+
+    // --------------------------------------------------
+    // EMAIL LOGS
+    // --------------------------------------------------
+
+    match /email_logs/{date} {
+
+      // Written server-side by the cron (Firebase Admin SDK bypasses rules).
+      // Admin UI reads these for the dashboard.
+      allow read: if isAdmin();
+      allow write: if false; // server-only writes
+    }
   }
 }
