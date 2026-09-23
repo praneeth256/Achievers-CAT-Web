@@ -93,35 +93,34 @@ service cloud.firestore {
 
     match /mock_file_chunks/{chunkId} {
 
-      // signedIn() is checked first so the rule short-circuits before
-      // attempting the cross-document get(), which itself requires auth.
+      // Students can read chunks of published mocks. We deliberately avoid
+      // calling isAdmin() here because each chunk in a query is evaluated
+      // independently and isAdmin() performs a cross-document get(). With
+      // large mocks (>5 chunks) the 10-document-access limit would be
+      // exceeded, causing "permission denied" for non-admin students.
       allow read:
-        if isAdmin()
-        || (
-          signedIn()
-          && get(
-            /databases/$(database)/documents/mocks/$(resource.data.mockId)
-          ).data.status == 'published'
-        );
+        if signedIn()
+        && get(
+          /databases/$(database)/documents/mocks/$(resource.data.mockId)
+        ).data.status == 'published';
 
-      allow create, update, delete:
+      // Admins can read any chunk (including drafts) and write chunks.
+      allow read, create, update, delete:
         if isAdmin();
     }
 
 
     match /mock_sections/{id} {
 
+      // Same pattern as mock_file_chunks: avoid isAdmin() on read to stay
+      // within the cross-document access limit for multi-doc queries.
       allow read:
         if signedIn()
-        && (
-          isAdmin()
-          ||
-          get(
-            /databases/$(database)/documents/mocks/$(resource.data.mockId)
-          ).data.status == 'published'
-        );
+        && get(
+          /databases/$(database)/documents/mocks/$(resource.data.mockId)
+        ).data.status == 'published';
 
-      allow create, update, delete:
+      allow read, create, update, delete:
         if isAdmin();
     }
 

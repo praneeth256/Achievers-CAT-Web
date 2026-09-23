@@ -29,13 +29,21 @@ function LoginForm() {
   };
 
   const finishSignIn = async (user: import("firebase/auth").User) => {
-    await setDoc(doc(db, "profiles", user.uid), {
-      displayName: user.displayName || "",
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      lastLoginAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    // Write the profile and log activity, but don't let failures block
+    // the redirect. The user is already authenticated via Firebase Auth;
+    // keeping them stuck on the login page because of a transient
+    // Firestore error would be confusing.
+    try {
+      await setDoc(doc(db, "profiles", user.uid), {
+        displayName: user.displayName || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        lastLoginAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.error("Could not save profile on sign-in:", err);
+    }
     void logActivity(user, "signin", "Signed in");
     window.location.assign(getDestination());
   };
