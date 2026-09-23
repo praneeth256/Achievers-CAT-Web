@@ -16,18 +16,18 @@ const DILR_PLAYLISTS = [
     tags: ["Beginner to Advanced", "CAT Focused"],
     available: true,
   },
-  // ── Future playlists can be added here ──
-  // {
-  //   id: "dilr-pyqs",
-  //   title: "DILR PYQs",
-  //   subtitle: "Past Year CAT Questions — Topic-wise",
-  //   href: "/learn/dilr/dilr-pyqs",
-  //   chapters: 12,
-  //   sets: 80,
-  //   tags: ["Past Year", "CAT 2017–2024"],
-  //   available: false, // set true when ready
-  // },
+  {
+    id: "goat-cat-pyqs",
+    title: "GOAT CAT — PYQs",
+    subtitle: "All 114 DILR Sets · CAT 2017–2024",
+    href: "/learn/dilr/goat-cat-pyqs",
+    chapters: 8,   // 8 years
+    sets: 114,
+    tags: ["Past Year", "CAT 2017–2024", "~37 hrs"],
+    available: true,
+  },
 ];
+
 
 export default function DilrPlaylistsPage() {
   return (

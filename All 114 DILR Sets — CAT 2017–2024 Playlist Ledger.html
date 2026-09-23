@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All 114 DILR Sets — CAT 2017–2024 Playlist Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#ffffff;
+    --ink-2:#fff6da;
+    --paper:#ffffff;
+    --paper-2:#fff3c9;
+    --line: rgba(40,32,4,0.12);
+    --line-light: rgba(40,32,4,0.12);
+    --gold:#f2b705;
+    --gold-soft:#c98a00;
+    --s1:#3f8a5c;
+    --s2:#2e6fa3;
+    --s3:#b1402f;
+    --text-light:#241f0d;
+    --text-dim:#7a7156;
+    --text-dark:#182420;
+    --text-dark-dim:#5b6862;
+    --radius: 10px;
+    --serif: 'Fraunces', serif;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, #fff6da 0%, #ffffff 55%),
+      #ffffff;
+    color:var(--text-light);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+
+  a{color:inherit;}
+
+  /* ---------- Header ---------- */
+  header.hero{
+    padding: 64px 6vw 40px;
+    border-bottom:1px solid var(--line-light);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--line-light) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-light) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 900px 420px at 15% 0%, black, transparent 70%);
+    pointer-events:none;
+    opacity:.5;
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--gold-soft);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:26px; height:1px;
+    background:var(--gold-soft);
+    display:inline-block;
+  }
+  h1{
+    font-family:var(--serif);
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(2.2rem, 5vw, 3.9rem);
+    line-height:1.02;
+    margin:0 0 18px;
+    max-width:20ch;
+    letter-spacing:-0.01em;
+  }
+  h1 em{
+    font-style:italic;
+    font-weight:400;
+    color:var(--gold-soft);
+  }
+  .hero-sub{
+    max-width:60ch;
+    color:var(--text-dim);
+    font-size:1.02rem;
+    line-height:1.65;
+    margin:0 0 34px;
+  }
+  .stat-row{
+    display:flex;
+    gap: 0;
+    flex-wrap:wrap;
+    border-top:1px solid var(--line-light);
+    max-width:820px;
+  }
+  .stat{
+    flex:1 1 120px;
+    padding:16px 22px 4px 0;
+    border-right:1px solid var(--line-light);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .num{
+    font-family:var(--serif);
+    font-size:2.1rem;
+    font-weight:600;
+    color:var(--gold-soft);
+    display:block;
+    line-height:1.1;
+  }
+  .stat .label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+  }
+
+  /* legend */
+  .legend{
+    display:flex; gap:18px; flex-wrap:wrap;
+    margin-top:30px;
+    font-family:var(--mono); font-size:12px; color:var(--text-dim);
+  }
+  .legend span{display:flex; align-items:center; gap:7px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.s1{background:var(--s1);} .dot.s2{background:var(--s2);} .dot.s3{background:var(--s3);}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    position:sticky; top:0; z-index:20;
+    background:rgba(255,255,255,0.88);
+    backdrop-filter: blur(10px);
+    padding:16px 6vw;
+    border-bottom:1px solid var(--line-light);
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  }
+  .search-wrap{
+    position:relative;
+    flex:1 1 280px;
+    max-width:440px;
+  }
+  .search-wrap svg{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    opacity:.5; width:15px; height:15px;
+  }
+  #search{
+    width:100%;
+    background:var(--ink-2);
+    border:1px solid var(--line-light);
+    border-radius:8px;
+    padding:10px 14px 10px 38px;
+    color:var(--text-light);
+    font-family:var(--sans);
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  #search:focus{border-color:var(--gold-soft);}
+  #search::placeholder{color:var(--text-dim);}
+
+  .toolbar-actions{display:flex; gap:8px; margin-left:auto;}
+  .tbtn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    background:transparent;
+    color:var(--text-dim);
+    border:1px solid var(--line-light);
+    border-radius:7px;
+    padding:9px 14px;
+    cursor:pointer;
+    transition:.15s ease;
+  }
+  .tbtn:hover{color:var(--text-light); border-color:var(--gold-soft);}
+
+  /* ---------- Year list ---------- */
+  main{padding: 30px 6vw 90px;}
+  .chapter{
+    border:1px solid var(--line-light);
+    border-radius: var(--radius);
+    margin-bottom:12px;
+    overflow:hidden;
+    background:linear-gradient(180deg, rgba(242,183,5,0.05), rgba(242,183,5,0.015));
+    transition: border-color .2s ease;
+  }
+  .chapter.hidden{display:none;}
+  .chapter:hover{border-color:rgba(201,138,0,0.45);}
+
+  .chapter-head{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    padding:18px 22px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .chap-index{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-dim);
+    width:28px;
+    flex-shrink:0;
+  }
+  .chap-name{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:1.2rem;
+    flex:1 1 auto;
+    min-width:140px;
+  }
+  .chap-count{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    white-space:nowrap;
+  }
+
+  /* slot composition mini bar */
+  .ladder{
+    display:flex;
+    height:7px;
+    width:150px;
+    border-radius:4px;
+    overflow:hidden;
+    flex-shrink:0;
+    background:var(--ink-2);
+  }
+  .ladder span{height:100%;}
+  .ladder .s1{background:var(--s1);}
+  .ladder .s2{background:var(--s2);}
+  .ladder .s3{background:var(--s3);}
+
+  .chevron{
+    width:18px; height:18px;
+    flex-shrink:0;
+    transition: transform .25s ease;
+    opacity:.6;
+  }
+  .chapter.open .chevron{transform:rotate(180deg);}
+
+  .chapter-body{
+    max-height:0;
+    overflow:hidden;
+    transition: max-height .35s ease;
+    background: rgba(242,183,5,0.035);
+  }
+  .chapter-body-inner{
+    padding: 4px 22px 20px;
+  }
+
+  .lod-group{margin-top:14px;}
+  .lod-group:first-child{margin-top:4px;}
+  .lod-title{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    display:flex; align-items:center; gap:8px;
+    margin:0 0 8px;
+    padding-left:2px;
+  }
+  .lod-title .dot{width:7px;height:7px;}
+  .lod-title .lod-count{color:var(--text-dim); opacity:.6;}
+
+  .set-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:9px 10px 9px 6px;
+    border-radius:7px;
+    text-decoration:none;
+    color:var(--text-light);
+    transition: background .15s ease;
+    border-left: 2px solid transparent;
+  }
+  .set-row:hover{
+    background:rgba(242,183,5,0.14);
+  }
+  .set-row.completed{
+    opacity:.5;
+  }
+  .set-row.completed .set-title{
+    text-decoration: line-through;
+    text-decoration-color: var(--gold-soft);
+    text-decoration-thickness: 1.5px;
+  }
+  .set-row.slot-1{border-left-color:var(--s1);}
+  .set-row.slot-2{border-left-color:var(--s2);}
+  .set-row.slot-3{border-left-color:var(--s3);}
+
+  .set-check{
+    flex-shrink:0;
+    width:19px; height:19px;
+    border-radius:5px;
+    border:1.5px solid rgba(40,32,4,0.3);
+    background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .set-check svg{
+    width:11px; height:11px;
+    opacity:0;
+    transition:opacity .12s ease;
+    stroke:#fff;
+    stroke-width:3;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .set-check.checked{
+    background:var(--gold-soft);
+    border-color:var(--gold-soft);
+  }
+  .set-check.checked svg{opacity:1;}
+
+  .set-link{
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    text-decoration:none;
+    color:inherit;
+    min-width:0;
+  }
+  .set-num{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    flex-shrink:0;
+    width:58px;
+  }
+  .set-title{
+    flex:1 1 auto;
+    font-size:14.5px;
+    font-weight:500;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .set-dur{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    flex-shrink:0;
+  }
+  .set-play{
+    flex-shrink:0;
+    width:22px; height:22px;
+    border-radius:50%;
+    background:var(--ink-2);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--gold-soft);
+    opacity:0;
+    transform:scale(.85);
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  .set-link:hover .set-play{opacity:1; transform:scale(1);}
+  .set-play svg{width:9px;height:9px; margin-left:1px;}
+
+  #emptyMsg{
+    display:none;
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  #emptyMsg.show{display:block;}
+
+  footer{
+    padding:26px 6vw 50px;
+    border-top:1px solid var(--line-light);
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  footer a{color:var(--gold-soft); text-decoration:none;}
+  footer a:hover{text-decoration:underline;}
+
+  @media (max-width:640px){
+    .ladder{display:none;}
+    .set-num{width:44px;}
+    .stat{padding-right:14px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">CAT PREPARATION · GOAT CAT</div>
+  <h1>All 114 DILR Sets, <em>Solved</em></h1>
+  <p class="hero-sub">Every DILR set from CAT 2017 through CAT 2024, fully worked through on video — arranged year by year (newest first) and slot by slot, so you can drill a specific exam attempt or binge a whole year in order.</p>
+  <div class="stat-row">
+    <div class="stat"><span class="num">114</span><span class="label">Sets Solved</span></div>
+    <div class="stat"><span class="num">8</span><span class="label">Years — 2017–24</span></div>
+    <div class="stat"><span class="num">~37</span><span class="label">Hours of Video</span></div>
+    <div class="stat"><span class="num" id="progressStat">0 / 114</span><span class="label">Watched</span></div>
+  </div>
+  <div class="legend">
+    <span><i class="dot s1"></i>Slot 1</span>
+    <span><i class="dot s2"></i>Slot 2</span>
+    <span><i class="dot s3"></i>Slot 3</span>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="search" type="text" placeholder="Search year, slot, topic or set…" autocomplete="off">
+  </div>
+  <div class="toolbar-actions">
+    <button class="tbtn" id="expandAll">Expand all</button>
+    <button class="tbtn" id="collapseAll">Collapse all</button>
+  </div>
+</div>
+
+<main>
+  <div id="chapterList"></div>
+  <div id="emptyMsg">No sets match your search.</div>
+</main>
+
+<footer>
+  <span>Source playlist: DILR Sets (CAT 2017–2024) · Channel: GOAT CAT</span>
+  <span>Progress is saved locally in this browser.</span>
+</footer>
+
+<script>
+const DATA = [["2024",[["Slot 1",[{"set":1,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=xy8RX-ghYbY","duration":"34:26"},{"set":44,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=6ZTMxkU_WPI","duration":"10:41"},{"set":57,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=IvJlViPpImE","duration":"17:54"},{"set":66,"topic":"Games and Tournaments","url":"https://www.youtube.com/watch?v=bOALOAku8Sg","duration":"14:32"},{"set":103,"topic":"Caselets","url":"https://www.youtube.com/watch?v=18vxlyx62n4","duration":"16:01"}]],["Slot 2",[{"set":3,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=qF1MuUn6BVA","duration":"36:21"},{"set":4,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=uTQcEotY3Xo","duration":"18:41"},{"set":13,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=yD6Ovf7zx2U","duration":"19:16"},{"set":58,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=EBnN8c-lXh8","duration":"15:02"},{"set":104,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=fO6oPSdZvJ0","duration":"24:23"}]],["Slot 3",[{"set":5,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=pRE3MvnpxnE","duration":"19:55"},{"set":14,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=fpiHXwf2T8Y","duration":"14:26"},{"set":15,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=iW6LLAbN2F4","duration":"26:39"},{"set":59,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=dhBarzuQKsQ","duration":"12:13"},{"set":105,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=J0kL2hXHmFo","duration":"19:30"}]]]],["2023",[["Slot 1",[{"set":6,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=P_nljvM0zaA","duration":"20:06"},{"set":99,"topic":"Distribution","url":"https://www.youtube.com/watch?v=W3g1yPQULqE","duration":"15:28"},{"set":100,"topic":"Distribution","url":"https://www.youtube.com/watch?v=YyJXwG2z3uc","duration":"31:19"},{"set":101,"topic":"Distribution","url":"https://www.youtube.com/watch?v=1SrOXQO-bD4","duration":"25:58"}]],["Slot 2",[{"set":7,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=aCsJek2Rbho","duration":"39:37"},{"set":8,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=ba7G0Aqj90I","duration":"24:21"},{"set":9,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=kiE99ewpoFM","duration":"20:41"},{"set":102,"topic":"Distribution","url":"https://www.youtube.com/watch?v=JcBnmnPI1fQ","duration":"21:36"}]],["Slot 3",[{"set":10,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=DBoWHw9bf1g","duration":"18:15"},{"set":11,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=WvX5yvoQHLA","duration":"20:20"},{"set":12,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=jdlJ_cQqjFk","duration":"22:46"},{"set":65,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=lAKcNKyjujM","duration":"17:43"}]]]],["2022",[["Slot 1",[{"set":16,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=fKqw3JOYAJ8","duration":"16:31"},{"set":17,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=AdEHn9gcK4M","duration":"12:05"},{"set":64,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=8G2_f8Sv0-w","duration":"44:30"},{"set":98,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=zcvWCjIgXkg","duration":"22:38"}]],["Slot 2",[{"set":18,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=7PzYtfKR5hQ","duration":"15:11"},{"set":43,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=5UiTtRD_D6c","duration":"19:59"},{"set":55,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=WuHp6lIxzYI","duration":"22:38"},{"set":63,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=TPb9yMUEctk","duration":"26:24"}]],["Slot 3",[{"set":2,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=xjUTGqQD16Y","duration":"34:56"},{"set":19,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=abI0AIuh2k4","duration":"24:29"},{"set":56,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=ZvHMpjH8PA4","duration":"21:04"},{"set":108,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=CL-lARfybjw","duration":"20:48"}]]]],["2021",[["Slot 1",[{"set":52,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=vPs5uwhndms","duration":"10:04"},{"set":92,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=59S41mApwUk","duration":"17:55"},{"set":93,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=r3btfTIWJDo","duration":"21:22"},{"set":94,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=lM0cCMwM1B4","duration":"24:57"}]],["Slot 2",[{"set":33,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=lzU-43KwFwM","duration":"20:02"},{"set":53,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=OSaymikMo_4","duration":"13:42"},{"set":67,"topic":"Games and Tournaments","url":"https://www.youtube.com/watch?v=OGfaVqSkCYc","duration":"16:32"},{"set":95,"topic":"Distribution","url":"https://www.youtube.com/watch?v=DyahqnQtXT0","duration":"15:13"}]],["Slot 3",[{"set":54,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=lQ-MOj1TRnQ","duration":"12:59"},{"set":96,"topic":"Distribution","url":"https://www.youtube.com/watch?v=frAvLU7Q094","duration":"21:32"},{"set":97,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=gvoNFYW9VgM","duration":"23:09"},{"set":109,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=Egpoq8CyWTw","duration":"42:23"}]]]],["2020",[["Slot 1",[{"set":29,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=4t99K2m4Q6I","duration":"18:40"},{"set":30,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=6HwPcpxOt6I","duration":"23:21"},{"set":40,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=59Vd364OfeM","duration":"10:35"},{"set":42,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=AKZVhxTbsEg","duration":"7:40"},{"set":84,"topic":"Distribution","url":"https://www.youtube.com/watch?v=ki30ePIm654","duration":"20:23"}]],["Slot 2",[{"set":31,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=qUVA3CSz1x0","duration":"16:51"},{"set":85,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=W_I6eeqQuEA","duration":"12:16"},{"set":86,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=I9J8Wq3yrFg","duration":"14:47"},{"set":87,"topic":"Distribution","url":"https://www.youtube.com/watch?v=dKdBY2370Nw","duration":"21:46"},{"set":88,"topic":"Distribution","url":"https://www.youtube.com/watch?v=PKJOrleVGZU","duration":"16:34"}]],["Slot 3",[{"set":32,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=TWbX6lNPQWs","duration":"22:52"},{"set":41,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=WozLbCqHBoE","duration":"22:38"},{"set":89,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=3jvXU01CN2E","duration":"16:32"},{"set":90,"topic":"Distribution","url":"https://www.youtube.com/watch?v=K_PFSJ01XRQ","duration":"14:44"},{"set":91,"topic":"Distribution","url":"https://www.youtube.com/watch?v=KdPm4C2Waz4","duration":"11:59"}]]]],["2019",[["Slot 1",[{"set":24,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=knoCOEP5FPw","duration":"20:17"},{"set":25,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=hhv7UByKVgU","duration":"26:59"},{"set":48,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=pHtNftNvyOE","duration":"16:04"},{"set":49,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=SAhTPNjVwPQ","duration":"19:00"},{"set":62,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=BoLBFeT0kE8","duration":"15:27"},{"set":68,"topic":"Arrangement","url":"https://www.youtube.com/watch?v=Yn0DOHd932o","duration":"15:39"},{"set":69,"topic":"Coding-Decoding","url":"https://www.youtube.com/watch?v=Sn7Z01CuUXY","duration":"9:44"},{"set":70,"topic":"Ordering","url":"https://www.youtube.com/watch?v=VK6AyitRl1o","duration":"10:17"}]],["Slot 2",[{"set":26,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=qSlceQC0VUU","duration":"13:16"},{"set":27,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=YgTNScUW--4","duration":"26:06"},{"set":28,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=dtiIsw10HuU","duration":"28:01"},{"set":39,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=ZEZvZuHJxEc","duration":"11:01"},{"set":50,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=RRZCkn4672o","duration":"10:17"},{"set":51,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=48AlBdeXk5U","duration":"10:22"},{"set":82,"topic":"Distribution","url":"https://www.youtube.com/watch?v=3NYw7gqjK8k","duration":"10:53"},{"set":83,"topic":"Sequencing","url":"https://www.youtube.com/watch?v=MFuhfhnFPH4","duration":"18:00"}]]]],["2018",[["Slot 1",[{"set":22,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=u_Jz_I1jR-c","duration":"22:52"},{"set":34,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=mbCpv7F08pE","duration":"7:25"},{"set":37,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=XTeHEnx1XsY","duration":"22:18"},{"set":46,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=7DvLxHytYWU","duration":"13:53"},{"set":77,"topic":"Distribution","url":"https://www.youtube.com/watch?v=ChKlQ9FaEs0","duration":"17:07"},{"set":78,"topic":"Distribution","url":"https://www.youtube.com/watch?v=ADCLZMt8hfc","duration":"12:33"},{"set":111,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=7LhW_uHacvM","duration":"10:59"},{"set":112,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=MVuEtZLBGuA","duration":"27:59"}]],["Slot 2",[{"set":23,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=oeboMPnF7qE","duration":"12:31"},{"set":38,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=fkhqICaYYl0","duration":"19:56"},{"set":47,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=kVHsy-nIYpY","duration":"30:44"},{"set":79,"topic":"Distribution","url":"https://www.youtube.com/watch?v=zwSJdsnSJT4","duration":"8:14"},{"set":80,"topic":"Coding-Decoding","url":"https://www.youtube.com/watch?v=ijzA-nIxVZk","duration":"12:50"},{"set":81,"topic":"Distribution","url":"https://www.youtube.com/watch?v=YWRyPZi7AVo","duration":"17:03"},{"set":113,"topic":"Data Interpretation","url":"https://www.youtube.com/watch?v=nSrkmFjm-P4","duration":"14:23"},{"set":114,"topic":"DI Tables","url":"https://www.youtube.com/watch?v=zPKZnsrOw30","duration":"12:20"}]]]],["2017",[["Slot 1",[{"set":35,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=IhEYjBbNf6o","duration":"26:02"},{"set":45,"topic":"Charts & Graphs","url":"https://www.youtube.com/watch?v=HGHmgn5_gSI","duration":"19:09"},{"set":60,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=R_JgqWdOKUY","duration":"30:11"},{"set":61,"topic":"Routes & Networks","url":"https://www.youtube.com/watch?v=qEc7-Ff3LCs","duration":"20:08"},{"set":71,"topic":"Ordering","url":"https://www.youtube.com/watch?v=NYZgeYrVskI","duration":"10:20"},{"set":72,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=rNEUJ8ZihZ4","duration":"14:19"},{"set":73,"topic":"Distribution","url":"https://www.youtube.com/watch?v=xYYidpoiecg","duration":"30:47"},{"set":106,"topic":"Distribution","url":"https://www.youtube.com/watch?v=hSFu_cIV0Qk","duration":"18:28"}]],["Slot 2",[{"set":20,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=wVIh986NIn8","duration":"17:20"},{"set":21,"topic":"Quant-Based Reasoning","url":"https://www.youtube.com/watch?v=BqngfEkuHjM","duration":"16:25"},{"set":36,"topic":"Venn Diagrams","url":"https://www.youtube.com/watch?v=PhN41ao_PDg","duration":"11:11"},{"set":74,"topic":"Arrangement","url":"https://www.youtube.com/watch?v=lWQmAXuZmX8","duration":"31:03"},{"set":75,"topic":"Puzzles","url":"https://www.youtube.com/watch?v=By3FfknVL-c","duration":"21:15"},{"set":76,"topic":"Distribution","url":"https://www.youtube.com/watch?v=nx3aU5d5UtU","duration":"13:08"},{"set":107,"topic":"DI Tables","url":"https://www.youtube.com/watch?v=tyuTJ-oN6B8","duration":"19:16"},{"set":110,"topic":"DI Tables","url":"https://www.youtube.com/watch?v=eFa2tJCkJP0","duration":"19:31"}]]]]];
+
+const SLOT_COLOR = {"Slot 1":"s1","Slot 2":"s2","Slot 3":"s3"};
+
+const listEl = document.getElementById('chapterList');
+const emptyMsg = document.getElementById('emptyMsg');
+
+const STORAGE_KEY = 'dilrPlaylistProgress';
+let completed = {};
+try{
+  completed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+}catch(e){ completed = {}; }
+
+function saveCompleted(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(completed)); }catch(e){}
+}
+
+function toggleCompleted(key, row, check){
+  if(completed[key]){
+    delete completed[key];
+    row.classList.remove('completed');
+    check.classList.remove('checked');
+  } else {
+    completed[key] = true;
+    row.classList.add('completed');
+    check.classList.add('checked');
+  }
+  saveCompleted();
+  updateProgressStat();
+}
+
+function totalSetCount(){
+  return DATA.reduce((s, [, slots]) => s + slots.reduce((s2, [, items]) => s2 + items.length, 0), 0);
+}
+
+function updateProgressStat(){
+  const done = Object.keys(completed).length;
+  const total = totalSetCount();
+  const el = document.getElementById('progressStat');
+  if(el) el.textContent = `${done} / ${total}`;
+}
+
+function ladderHTML(slots){
+  const counts = {};
+  let total = 0;
+  slots.forEach(([slotName, items]) => {
+    counts[slotName] = items.length;
+    total += items.length;
+  });
+  if(total === 0) total = 1;
+  return slots.map(([slotName]) => {
+    const pct = (counts[slotName]/total*100);
+    if(pct <= 0) return '';
+    const cls = SLOT_COLOR[slotName] || 's1';
+    return `<span class="${cls}" style="width:${pct}%"></span>`;
+  }).join('');
+}
+
+function playIcon(){
+  return `<svg viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5v9l8-4.5-8-4.5z"/></svg>`;
+}
+function chevron(){
+  return `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+}
+
+function buildChapter(year, slots, idx){
+  const wrap = document.createElement('div');
+  wrap.className = 'chapter';
+  const totalSets = slots.reduce((s, [, items]) => s + items.length, 0);
+  wrap.dataset.search = `cat ${year} ${year}`;
+
+  const head = document.createElement('div');
+  head.className = 'chapter-head';
+  head.innerHTML = `
+    <span class="chap-index">${String(idx+1).padStart(2,'0')}</span>
+    <span class="chap-name">CAT ${year}</span>
+    <span class="ladder">${ladderHTML(slots)}</span>
+    <span class="chap-count">${totalSets} set${totalSets>1?'s':''}</span>
+    ${chevron()}
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'chapter-body';
+  const inner = document.createElement('div');
+  inner.className = 'chapter-body-inner';
+
+  slots.forEach(([slotName, items]) => {
+    if(!items || !items.length) return;
+    const slotNum = (slotName.match(/\d/) || ['1'])[0];
+    const g = document.createElement('div');
+    g.className = 'lod-group';
+    g.innerHTML = `<div class="lod-title"><i class="dot s${slotNum}"></i>${slotName}<span class="lod-count">&nbsp;&middot; ${items.length}</span></div>`;
+    items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = `set-row slot-${slotNum}`;
+      row.dataset.search = `${it.topic} set ${it.set} ${slotName} cat ${year} ${year}`.toLowerCase();
+      row.dataset.key = it.url + '-' + it.set;
+
+      const check = document.createElement('span');
+      check.className = 'set-check';
+      check.title = 'Mark as watched';
+      check.innerHTML = `<svg viewBox="0 0 12 12"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>`;
+      check.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCompleted(row.dataset.key, row, check);
+      });
+
+      const a = document.createElement('a');
+      a.className = 'set-link';
+      a.href = it.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = `
+        <span class="set-num">Set ${it.set}</span>
+        <span class="set-title">${it.topic}</span>
+        <span class="set-dur">${it.duration}</span>
+        <span class="set-play">${playIcon()}</span>
+      `;
+
+      row.appendChild(check);
+      row.appendChild(a);
+      g.appendChild(row);
+
+      if(completed[row.dataset.key]){
+        row.classList.add('completed');
+        check.classList.add('checked');
+      }
+    });
+    inner.appendChild(g);
+  });
+
+  body.appendChild(inner);
+  wrap.appendChild(head);
+  wrap.appendChild(body);
+
+  head.addEventListener('click', () => toggleChapter(wrap, body));
+
+  return wrap;
+}
+
+function toggleChapter(wrap, body){
+  const isOpen = wrap.classList.contains('open');
+  if(isOpen){
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(()=>{ body.style.maxHeight = '0px'; });
+    wrap.classList.remove('open');
+  } else {
+    wrap.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.addEventListener('transitionend', function te(){
+      if(wrap.classList.contains('open')) body.style.maxHeight = 'none';
+      body.removeEventListener('transitionend', te);
+    });
+  }
+}
+
+DATA.forEach(([year, slots], idx) => {
+  listEl.appendChild(buildChapter(year, slots, idx));
+});
+updateProgressStat();
+
+document.getElementById('expandAll').addEventListener('click', () => {
+  document.querySelectorAll('.chapter').forEach(ch => {
+    if(!ch.classList.contains('open')){
+      const body = ch.querySelector('.chapter-body');
+      ch.classList.add('open');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      setTimeout(()=>{ if(ch.classList.contains('open')) body.style.maxHeight='none'; }, 360);
+    }
+  });
+});
+document.getElementById('collapseAll').addEventListener('click', () => {
+  document.querySelectorAll('.chapter.open').forEach(ch => {
+    const body = ch.querySelector('.chapter-body');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(()=>{ body.style.maxHeight = '0px'; });
+    ch.classList.remove('open');
+  });
+});
+
+const search = document.getElementById('search');
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  let anyVisible = false;
+  document.querySelectorAll('.chapter').forEach(ch => {
+    const catMatch = ch.dataset.search.includes(q);
+    const rows = ch.querySelectorAll('.set-row');
+    let rowMatch = false;
+    rows.forEach(r => {
+      const match = !q || catMatch || r.dataset.search.includes(q);
+      r.style.display = match ? '' : 'none';
+      if(match) rowMatch = true;
+    });
+    const show = !q || catMatch || rowMatch;
+    ch.classList.toggle('hidden', !show);
+    if(show) anyVisible = true;
+    if(q && rowMatch){
+      if(!ch.classList.contains('open')){
+        const body = ch.querySelector('.chapter-body');
+        ch.classList.add('open');
+        body.style.maxHeight = body.scrollHeight + 'px';
+        setTimeout(()=>{ if(ch.classList.contains('open')) body.style.maxHeight='none'; }, 360);
+      }
+    }
+  });
+  emptyMsg.classList.toggle('show', !anyVisible);
+});
+</script>
+</body>
+</html>

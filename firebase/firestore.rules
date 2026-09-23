@@ -659,8 +659,8 @@ service cloud.firestore {
     // LEARN PROGRESS
     // --------------------------------------------------
 
-    // One document per student per subject. Doc ID format: {uid}_{subject}
-    // e.g. "abc123_dilr". Students read and write only their own progress.
+    // One document per student per playlist. Doc ID format: {uid}_{key}
+    // e.g. "abc123_dilr", "abc123_dilr_pyq". Students r/w only their own docs.
     match /learn_progress/{docId} {
       allow read, write: if signedIn()
         && docId.matches(request.auth.uid + '_.*');
