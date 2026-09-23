@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aptitude Jab — DILR Practice Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#ffffff;
+    --ink-2:#fff6da;
+    --paper:#ffffff;
+    --paper-2:#fff3c9;
+    --line: rgba(40,32,4,0.12);
+    --line-light: rgba(40,32,4,0.12);
+    --gold:#f2b705;
+    --gold-soft:#c98a00;
+    --e:#3f8a5c;
+    --m:#2e6fa3;
+    --md:#c07a1a;
+    --d:#b1402f;
+    --text-light:#241f0d;
+    --text-dim:#7a7156;
+    --text-dark:#182420;
+    --text-dark-dim:#5b6862;
+    --radius: 10px;
+    --serif: 'Fraunces', serif;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, #fff6da 0%, #ffffff 55%),
+      #ffffff;
+    color:var(--text-light);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+
+  a{color:inherit;}
+
+  /* ---------- Header ---------- */
+  header.hero{
+    padding: 64px 6vw 40px;
+    border-bottom:1px solid var(--line-light);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--line-light) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-light) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 900px 420px at 15% 0%, black, transparent 70%);
+    pointer-events:none;
+    opacity:.5;
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--gold-soft);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:26px; height:1px;
+    background:var(--gold-soft);
+    display:inline-block;
+  }
+  h1{
+    font-family:var(--serif);
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(2.2rem, 5vw, 3.9rem);
+    line-height:1.02;
+    margin:0 0 18px;
+    max-width:16ch;
+    letter-spacing:-0.01em;
+  }
+  h1 em{
+    font-style:italic;
+    font-weight:400;
+    color:var(--gold-soft);
+  }
+  .hero-sub{
+    max-width:56ch;
+    color:var(--text-dim);
+    font-size:1.02rem;
+    line-height:1.65;
+    margin:0 0 34px;
+  }
+  .stat-row{
+    display:flex;
+    gap: 0;
+    flex-wrap:wrap;
+    border-top:1px solid var(--line-light);
+    max-width:820px;
+  }
+  .stat{
+    flex:1 1 120px;
+    padding:16px 22px 4px 0;
+    border-right:1px solid var(--line-light);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .num{
+    font-family:var(--serif);
+    font-size:2.1rem;
+    font-weight:600;
+    color:var(--gold-soft);
+    display:block;
+    line-height:1.1;
+  }
+  .stat .label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+  }
+
+  /* legend */
+  .legend{
+    display:flex; gap:18px; flex-wrap:wrap;
+    margin-top:30px;
+    font-family:var(--mono); font-size:12px; color:var(--text-dim);
+  }
+  .legend span{display:flex; align-items:center; gap:7px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.e{background:var(--e);} .dot.m{background:var(--m);}
+  .dot.md{background:var(--md);} .dot.d{background:var(--d);}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    position:sticky; top:0; z-index:20;
+    background:rgba(255,255,255,0.88);
+    backdrop-filter: blur(10px);
+    padding:16px 6vw;
+    border-bottom:1px solid var(--line-light);
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  }
+  .search-wrap{
+    position:relative;
+    flex:1 1 280px;
+    max-width:440px;
+  }
+  .search-wrap svg{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    opacity:.5; width:15px; height:15px;
+  }
+  #search{
+    width:100%;
+    background:var(--ink-2);
+    border:1px solid var(--line-light);
+    border-radius:8px;
+    padding:10px 14px 10px 38px;
+    color:var(--text-light);
+    font-family:var(--sans);
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  #search:focus{border-color:var(--gold-soft);}
+  #search::placeholder{color:var(--text-dim);}
+
+  .toolbar-actions{display:flex; gap:8px; margin-left:auto;}
+  .tbtn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    background:transparent;
+    color:var(--text-dim);
+    border:1px solid var(--line-light);
+    border-radius:7px;
+    padding:9px 14px;
+    cursor:pointer;
+    transition:.15s ease;
+  }
+  .tbtn:hover{color:var(--text-light); border-color:var(--gold-soft);}
+
+  /* ---------- Chapter list ---------- */
+  main{padding: 30px 6vw 90px;}
+  .chapter{
+    border:1px solid var(--line-light);
+    border-radius: var(--radius);
+    margin-bottom:12px;
+    overflow:hidden;
+    background:linear-gradient(180deg, rgba(242,183,5,0.05), rgba(242,183,5,0.015));
+    transition: border-color .2s ease;
+  }
+  .chapter.hidden{display:none;}
+  .chapter:hover{border-color:rgba(201,138,0,0.45);}
+
+  .chapter-head{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    padding:18px 22px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .chap-index{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-dim);
+    width:28px;
+    flex-shrink:0;
+  }
+  .chap-name{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:1.2rem;
+    flex:1 1 auto;
+    min-width:140px;
+  }
+  .chap-count{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    white-space:nowrap;
+  }
+
+  /* difficulty ladder mini bar */
+  .ladder{
+    display:flex;
+    height:7px;
+    width:150px;
+    border-radius:4px;
+    overflow:hidden;
+    flex-shrink:0;
+    background:var(--ink-2);
+  }
+  .ladder span{height:100%;}
+  .ladder .e{background:var(--e);}
+  .ladder .m{background:var(--m);}
+  .ladder .md{background:var(--md);}
+  .ladder .d{background:var(--d);}
+
+  .chevron{
+    width:18px; height:18px;
+    flex-shrink:0;
+    transition: transform .25s ease;
+    opacity:.6;
+  }
+  .chapter.open .chevron{transform:rotate(180deg);}
+
+  .chapter-body{
+    max-height:0;
+    overflow:hidden;
+    transition: max-height .35s ease;
+    background: rgba(242,183,5,0.035);
+  }
+  .chapter-body-inner{
+    padding: 4px 22px 20px;
+  }
+
+  .lod-group{margin-top:14px;}
+  .lod-group:first-child{margin-top:4px;}
+  .lod-title{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    display:flex; align-items:center; gap:8px;
+    margin:0 0 8px;
+    padding-left:2px;
+  }
+  .lod-title .dot{width:7px;height:7px;}
+  .lod-title .lod-count{color:var(--text-dim); opacity:.6;}
+
+  .set-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:9px 10px 9px 6px;
+    border-radius:7px;
+    text-decoration:none;
+    color:var(--text-light);
+    transition: background .15s ease;
+    border-left: 2px solid transparent;
+  }
+  .set-row:hover{
+    background:rgba(242,183,5,0.14);
+  }
+  .set-row.completed{
+    opacity:.5;
+  }
+  .set-row.completed .set-title{
+    text-decoration: line-through;
+    text-decoration-color: var(--gold-soft);
+    text-decoration-thickness: 1.5px;
+  }
+  .set-row.lod-E{border-left-color:var(--e);}
+  .set-row.lod-M{border-left-color:var(--m);}
+  .set-row.lod-MD{border-left-color:var(--md);}
+  .set-row.lod-D{border-left-color:var(--d);}
+
+  .set-check{
+    flex-shrink:0;
+    width:19px; height:19px;
+    border-radius:5px;
+    border:1.5px solid rgba(40,32,4,0.3);
+    background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .set-check svg{
+    width:11px; height:11px;
+    opacity:0;
+    transition:opacity .12s ease;
+    stroke:#fff;
+    stroke-width:3;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .set-check.checked{
+    background:var(--gold);
+    border-color:var(--gold-soft);
+  }
+  .set-check.checked svg{opacity:1;}
+
+  .set-link{
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    min-width:0;
+    text-decoration:none;
+    color:inherit;
+  }
+
+  .set-num{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    width:56px;
+    flex-shrink:0;
+  }
+  .set-title{
+    flex:1 1 auto;
+    font-size:14px;
+    min-width:140px;
+  }
+  .set-dur{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    width:52px;
+    text-align:right;
+    flex-shrink:0;
+  }
+  .set-play{
+    width:22px; height:22px;
+    flex-shrink:0;
+    border-radius:50%;
+    background:var(--ink-2);
+    display:flex; align-items:center; justify-content:center;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .set-row:hover .set-play{background:var(--gold); transform:scale(1.06);}
+  .set-play svg{width:9px; height:9px; margin-left:1px;}
+
+  .empty-msg{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:13px;
+    display:none;
+  }
+  .empty-msg.show{display:block;}
+
+  footer{
+    text-align:center;
+    padding:30px 20px 50px;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.05em;
+  }
+
+  @media (max-width:640px){
+    .chapter-head{flex-wrap:wrap; gap:10px 14px;}
+    .ladder{order:5; width:100%;}
+    .chap-count{order:4;}
+    .set-title{font-size:13.5px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">Aptitude Jab &middot; CAT Infinite DILR</div>
+  <h1>The DILR Practice <em>Ledger</em></h1>
+  <p class="hero-sub">Every solved set, sorted into chapters and ranked from easiest to hardest — so you can climb each topic in order instead of hunting through a video list.</p>
+  <div class="stat-row">
+    <div class="stat"><span class="num">412</span><span class="label">Sets Solved</span></div>
+    <div class="stat"><span class="num">28</span><span class="label">Chapters</span></div>
+    <div class="stat"><span class="num">E&rarr;D</span><span class="label">Difficulty Climb</span></div>
+    <div class="stat"><span class="num" id="progressStat">0 / 412</span><span class="label">Completed</span></div>
+  </div>
+  <div class="legend">
+    <span><i class="dot e"></i>Easy</span>
+    <span><i class="dot m"></i>Moderate</span>
+    <span><i class="dot md"></i>Mod&ndash;Difficult</span>
+    <span><i class="dot d"></i>Difficult</span>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="search" type="text" placeholder="Search a chapter or set title&hellip;">
+  </div>
+  <div class="toolbar-actions">
+    <button class="tbtn" id="expandAll">Expand all</button>
+    <button class="tbtn" id="collapseAll">Collapse all</button>
+  </div>
+</div>
+
+<main id="chapterList"></main>
+<p class="empty-msg" id="emptyMsg">No chapters or sets match your search.</p>
+
+<footer>Compiled from the Aptitude Jab spreadsheet &middot; 412 sets across 28 chapters</footer>
+
+<script>
+const DATA = [["Caselet", [{"set": 41, "title": "Selection in the Dramatics Society", "url": "https://youtube.com/watch?v=zzxBch25sCo", "lod": "E", "duration": "00:08:47"}, {"set": 110, "title": "Crypto Buddies", "url": "https://youtube.com/watch?v=4q1KmFyPca8", "lod": "E", "duration": "00:05:44"}, {"set": 137, "title": "The Grocery Shopping", "url": "https://youtube.com/watch?v=eU5Mlgdv14A", "lod": "E", "duration": "00:09:10"}, {"set": 265, "title": "The Car Parking Problem", "url": "https://youtube.com/watch?v=K7zCl7SdyiE", "lod": "E", "duration": "00:12:31"}, {"set": 278, "title": "Age and Salary of Employees", "url": "https://youtube.com/watch?v=N6ULXFoK9eM", "lod": "E", "duration": "00:07:58"}, {"set": 304, "title": "Bringing Gifts for the Host", "url": "https://youtube.com/watch?v=df2UD0_esVQ", "lod": "E", "duration": "00:06:36"}, {"set": 312, "title": "Water Supply in a Society", "url": "https://youtube.com/watch?v=OqoqBzEq2v8", "lod": "E", "duration": "00:17:29"}, {"set": 337, "title": "Assorting the balls", "url": "https://youtube.com/watch?v=MV2NYeI3OkQ", "lod": "E", "duration": "00:09:42"}, {"set": 378, "title": "The Dumbbell Rack I", "url": "https://youtube.com/watch?v=D76BQ0O86iI", "lod": "E", "duration": "00:15:55"}, {"set": 37, "title": "Two Paper Exam", "url": "https://youtube.com/watch?v=9x1fT-YBc8Q", "lod": "M", "duration": "00:07:22"}, {"set": 59, "title": "Coins with P.R.I.M.E.S.", "url": "https://youtube.com/watch?v=ES1EqQ-lheI", "lod": "M", "duration": "00:11:20"}, {"set": 69, "title": "Passengers in the the Flight", "url": "https://youtube.com/watch?v=lDaTv-2sZVs", "lod": "M", "duration": "00:06:01"}, {"set": 84, "title": "Two innings of a Test", "url": "https://youtube.com/watch?v=p1P4Zgotdcg", "lod": "M", "duration": "00:06:56"}, {"set": 88, "title": "Project Rating (XAT 2021)", "url": "https://youtube.com/watch?v=00qA_en-hYI", "lod": "M", "duration": "00:09:17"}, {"set": 92, "title": "2 Sprints", "url": "https://youtube.com/watch?v=kMSgYU_ycrY", "lod": "M", "duration": "00:07:05"}, {"set": 96, "title": "People of 19th Century", "url": "https://youtube.com/watch?v=oNZ-tzmq48g", "lod": "M", "duration": "00:09:49"}, {"set": 141, "title": "The Prime Race", "url": "https://youtube.com/watch?v=-SJNbpEQFmI", "lod": "M", "duration": "00:08:40"}, {"set": 155, "title": "The Vaccination Drive", "url": "https://youtube.com/watch?v=W7nXfRsgjZY", "lod": "M", "duration": "00:12:21"}, {"set": 158, "title": "Junior and Senior Scientists", "url": "https://youtube.com/watch?v=juGUVnOdPOc", "lod": "M", "duration": "00:09:00"}, {"set": 182, "title": "The Detained Students", "url": "https://youtube.com/watch?v=cLzaZXlibKw", "lod": "M", "duration": "00:08:43"}, {"set": 195, "title": "Eggs that get Multiplied", "url": "https://youtube.com/watch?v=rfKY4oln_jg", "lod": "M", "duration": "00:09:32"}, {"set": 240, "title": "Betting Involves Financial Risk", "url": "https://youtube.com/watch?v=IF6Nkju_cK0", "lod": "M", "duration": "00:05:09"}, {"set": 281, "title": "Salary, Expenditure and Savings in Thousands", "url": "https://youtube.com/watch?v=TwypfWcbwd4", "lod": "M", "duration": "00:12:57"}, {"set": 295, "title": "Buying Chocolates for Cousins", "url": "https://youtube.com/watch?v=PN3R7tQbWik", "lod": "M", "duration": "00:05:30"}, {"set": 298, "title": "The Five Florists", "url": "https://youtube.com/watch?v=UWhZg4yw4ZQ", "lod": "M", "duration": "00:11:47"}, {"set": 299, "title": "Evaluation in the IIM Interview", "url": "https://youtube.com/watch?v=ozmB-BGobUY", "lod": "M", "duration": "00:09:41"}, {"set": 301, "title": "The Two Essays", "url": "https://youtube.com/watch?v=Pc1TQKSA0a8", "lod": "M", "duration": "00:19:33"}, {"set": 310, "title": "Brothers from Ayodhya", "url": "https://youtube.com/watch?v=liqn0ijbRQY", "lod": "M", "duration": "00:07:09"}, {"set": 317, "title": "Age of the employees", "url": "https://youtube.com/watch?v=7SZvF7x_6aY", "lod": "M", "duration": "00:09:57"}, {"set": 386, "title": "Don't Take Too Many Leaves", "url": "https://youtube.com/watch?v=jWax93bg3QQ", "lod": "M", "duration": "00:06:38"}, {"set": 395, "title": "Gaming Events at the College Fest", "url": "https://youtube.com/watch?v=hbv_tkanHQA", "lod": "M", "duration": "00:11:41"}, {"set": 399, "title": "Creating Quantitative Aptitude Questions", "url": "https://youtube.com/watch?v=zWkbQOzHt0o", "lod": "M", "duration": "00:06:26"}, {"set": 408, "title": "The Octagonal Prism", "url": "https://youtube.com/watch?v=SW3Tu4qIKYA", "lod": "M", "duration": "00:07:05"}, {"set": 2, "title": "Incorrectly Priced Diamonds", "url": "https://youtube.com/watch?v=xaiCJU8Dexk", "lod": "MD", "duration": "00:08:57"}, {"set": 78, "title": "The weight problem", "url": "https://youtube.com/watch?v=E7iERimegHQ", "lod": "MD", "duration": "00:07:17"}, {"set": 272, "title": "Security Guard Knows How to Add", "url": "https://youtube.com/watch?v=aF6NyVx132Q", "lod": "MD", "duration": "00:11:39"}, {"set": 308, "title": "Selection at the University", "url": "https://youtube.com/watch?v=8MyIKQZ2JU0", "lod": "MD", "duration": "00:12:51"}, {"set": 349, "title": "Five Working Siblings", "url": "https://youtube.com/watch?v=rsnUwd5BbKw", "lod": "MD", "duration": "00:09:04"}, {"set": 379, "title": "The Metro in Noida I", "url": "https://youtube.com/watch?v=BCMPtC-OUuI", "lod": "MD", "duration": "00:10:33"}, {"set": 406, "title": "The Multibagger Stocks", "url": "https://youtube.com/watch?v=ZZlzArsQ53c", "lod": "MD", "duration": "00:08:41"}, {"set": 407, "title": "The Ages of Mathematicians", "url": "https://youtube.com/watch?v=OV3nP_4F27k", "lod": "MD", "duration": "00:08:05"}, {"set": 79, "title": "The Gym Workout", "url": "https://youtube.com/watch?v=1PmhIKpRG3o", "lod": "D", "duration": "00:13:00"}, {"set": 127, "title": "The Shifting of Goods", "url": "https://youtube.com/watch?v=odJtnGC4XSM", "lod": "D", "duration": "00:12:07"}, {"set": 173, "title": "Combination of Pens", "url": "https://youtube.com/watch?v=GUVe0kNkAK8", "lod": "D", "duration": "00:07:11"}, {"set": 189, "title": "Investments with different Risks", "url": "https://youtube.com/watch?v=xN2_1jp9PYU", "lod": "D", "duration": "00:06:11"}, {"set": 196, "title": "The Toy Shop", "url": "https://youtube.com/watch?v=gQ0SYX0pCTU", "lod": "D", "duration": "00:17:12"}, {"set": 200, "title": "The Whale Tank", "url": "https://youtube.com/watch?v=PehIpXWimfI", "lod": "D", "duration": "00:08:35"}, {"set": 264, "title": "Sharma ji ka Ladka", "url": "https://youtube.com/watch?v=5YJwwDpkMoE", "lod": "D", "duration": "00:11:25"}]], ["Logical DI", [{"set": 21, "title": "Disguised Marks", "url": "https://youtube.com/watch?v=aWErbxBiyMA", "lod": "E", "duration": "00:06:10"}, {"set": 13, "title": "Laptop Sale", "url": "https://youtube.com/watch?v=RoD10pZntaI", "lod": "M", "duration": "00:10:45"}, {"set": 55, "title": "16 People, 4 Teams", "url": "https://youtube.com/watch?v=_r76GVFIdWQ", "lod": "M", "duration": "00:08:14"}, {"set": 80, "title": "Students in school", "url": "https://youtube.com/watch?v=bsvn9vL0qP8", "lod": "M", "duration": "00:08:11"}, {"set": 215, "title": "Pacers and Spinners", "url": "https://youtube.com/watch?v=AMBAdImVw9U", "lod": "M", "duration": "00:08:44"}, {"set": 221, "title": "Creating a Sales Funnel", "url": "https://youtube.com/watch?v=kGaK5WWd4Fk", "lod": "M", "duration": "00:09:03"}, {"set": 270, "title": "Exchanging the caps", "url": "https://youtube.com/watch?v=Pty7P6gVYrM", "lod": "M", "duration": "00:10:27"}, {"set": 303, "title": "Organizing the scholarship test", "url": "https://youtube.com/watch?v=L6lxPe9gx68", "lod": "M", "duration": "00:09:44"}, {"set": 340, "title": "Players of Soviet Nations", "url": "https://youtube.com/watch?v=xc5qMG7jNHI", "lod": "M", "duration": "00:14:30"}, {"set": 358, "title": "Employees Availing Cab Service", "url": "https://youtube.com/watch?v=VbWjGujcfG0", "lod": "M", "duration": "00:12:11"}, {"set": 17, "title": "Fall of Wickets", "url": "https://youtube.com/watch?v=JHaQPtCcwFc", "lod": "MD", "duration": "00:10:03"}, {"set": 29, "title": "8 Grand Slams", "url": "https://youtube.com/watch?v=_3cho5G4B-0", "lod": "MD", "duration": "00:09:40"}, {"set": 40, "title": "Hindi and English Movies", "url": "https://youtube.com/watch?v=hVBCy9B88f0", "lod": "MD", "duration": "00:06:59"}, {"set": 43, "title": "The Scorelines", "url": "https://youtube.com/watch?v=ifBLM10YsOI", "lod": "MD", "duration": "00:08:11"}, {"set": 89, "title": "Response sheet of 6 students (XAT 2022)", "url": "https://youtube.com/watch?v=rB80RAMD7hs", "lod": "MD", "duration": "00:15:32"}, {"set": 175, "title": "Books in the Library Shelves", "url": "https://youtube.com/watch?v=TYxxlsF3w14", "lod": "MD", "duration": "00:10:45"}, {"set": 179, "title": "Incomplete Certification", "url": "https://youtube.com/watch?v=S936lXanQNk", "lod": "MD", "duration": "00:09:59"}, {"set": 223, "title": "Showrooms of the Electronics Company", "url": "https://youtube.com/watch?v=ih_iazp3HlQ", "lod": "MD", "duration": "00:12:46"}, {"set": 231, "title": "Finding Answers from Response Sheet", "url": "https://youtube.com/watch?v=Npv-1e6YEGg", "lod": "MD", "duration": "00:07:22"}, {"set": 332, "title": "Medical Entrance Scholarship Tests", "url": "https://youtube.com/watch?v=f0DDAgqA90M", "lod": "MD", "duration": "00:10:00"}, {"set": 334, "title": "Calling for Credit Cards", "url": "https://youtube.com/watch?v=mJ8gqiOygNA", "lod": "MD", "duration": "00:08:53"}, {"set": 398, "title": "Saving Money in Piggy Banks", "url": "https://youtube.com/watch?v=Ub86szXk93E", "lod": "MD", "duration": "00:10:07"}, {"set": 22, "title": "Withdrawing notes from ATM", "url": "https://youtube.com/watch?v=Ecz4syJ58eI", "lod": "D", "duration": "00:12:15"}, {"set": 52, "title": "The Disguised Persons and Subjects", "url": "https://youtube.com/watch?v=wcKcJmLii-c", "lod": "D", "duration": "00:06:50"}, {"set": 100, "title": "Battle between 3 Houses", "url": "https://youtube.com/watch?v=9QpEF_WyUiw", "lod": "D", "duration": "00:11:42"}, {"set": 111, "title": "I missed a Mock Test", "url": "https://youtube.com/watch?v=IT5Yh9CHlIo", "lod": "D", "duration": "00:07:04"}, {"set": 128, "title": "Judging the dance show", "url": "https://youtube.com/watch?v=Un1qYQsK5sE", "lod": "D", "duration": "00:06:29"}, {"set": 142, "title": "Guards of the Society", "url": "https://youtube.com/watch?v=acVHje659Dw", "lod": "D", "duration": "00:12:07"}, {"set": 146, "title": "Car owners of societies", "url": "https://youtube.com/watch?v=sZkvvUFSgcQ", "lod": "D", "duration": "00:15:10"}, {"set": 153, "title": "The Re-Evaluation", "url": "https://youtube.com/watch?v=sSQFNkmrgzs", "lod": "D", "duration": "00:13:00"}, {"set": 186, "title": "Percentages in Four Semesters", "url": "https://youtube.com/watch?v=8fygM8d8NwE", "lod": "D", "duration": "00:16:13"}, {"set": 207, "title": "The Flight Timings", "url": "https://youtube.com/watch?v=d3N6gQuA4kg", "lod": "D", "duration": "00:16:01"}, {"set": 246, "title": "Negative Marking is Risky", "url": "https://youtube.com/watch?v=8xLaj7K1Ois", "lod": "D", "duration": "00:15:25"}, {"set": 248, "title": "Maata ka Prasad", "url": "https://youtube.com/watch?v=jcIwEVeyGLg", "lod": "D", "duration": "00:13:58"}, {"set": 289, "title": "Mapping the Questions of 4 Sets of Paper", "url": "https://youtube.com/watch?v=vDtajMh_1Dc", "lod": "D", "duration": "00:08:54"}, {"set": 293, "title": "Getting Likes on Instagram Photos", "url": "https://youtube.com/watch?v=hqd3wwSuYqU", "lod": "D", "duration": "00:08:31"}, {"set": 300, "title": "Predicting the World Cup Winners", "url": "https://youtube.com/watch?v=A5fZTaUJ194", "lod": "D", "duration": "00:15:46"}, {"set": 323, "title": "Rating the Beauty Pageants", "url": "https://youtube.com/watch?v=JOA0jjQEJEk", "lod": "D", "duration": "00:10:13"}, {"set": 381, "title": "Drinking Healthy Juices", "url": "https://youtube.com/watch?v=M3zM8SfQEn8", "lod": "D", "duration": "00:11:53"}, {"set": 384, "title": "Raja Wazir Chor Sipahi 2.0", "url": "https://youtube.com/watch?v=uikL0ZNwXWk", "lod": "D", "duration": "00:12:16"}]], ["Data Table", [{"set": 31, "title": "Judo, Kudo, Ludo", "url": "https://youtube.com/watch?v=yYSdSLULS1U", "lod": "E", "duration": "00:17:16"}, {"set": 70, "title": "Collecting Money for Charity", "url": "https://youtube.com/watch?v=WsWWYOZpwF4", "lod": "E", "duration": "00:10:39"}, {"set": 112, "title": "Winner and Runner Up", "url": "https://youtube.com/watch?v=1XI75C1EynA", "lod": "E", "duration": "00:06:22"}, {"set": 122, "title": "Probability of Tokens", "url": "https://youtube.com/watch?v=vviE6BYx2Xg", "lod": "E", "duration": "00:13:03"}, {"set": 190, "title": "The Risky Test", "url": "https://youtube.com/watch?v=pFLrQF7VN4c", "lod": "E", "duration": "00:16:19"}, {"set": 316, "title": "The Quiz of 5 rounds", "url": "https://youtube.com/watch?v=299XxgnNUe0", "lod": "E", "duration": "00:06:33"}, {"set": 318, "title": "The Mock Scores in PCM", "url": "https://youtube.com/watch?v=KmLu85LRemk", "lod": "E", "duration": "00:10:27"}, {"set": 376, "title": "Volunteers in the NGO", "url": "https://youtube.com/watch?v=Zndq3l3V3fw", "lod": "E", "duration": "00:07:08"}, {"set": 5, "title": "Movie Downloads", "url": "https://youtube.com/watch?v=aCMYQ0swbsc", "lod": "M", "duration": "00:11:24"}, {"set": 47, "title": "Net Promoter Score", "url": "https://youtube.com/watch?v=KdaMmLRXSz4", "lod": "M", "duration": "00:08:27"}, {"set": 51, "title": "The Top 6 students", "url": "https://youtube.com/watch?v=xtagprGFd0w", "lod": "M", "duration": "00:08:21"}, {"set": 67, "title": "Karan and Arjun", "url": "https://youtube.com/watch?v=eJTzav0gOzQ", "lod": "M", "duration": "00:08:40"}, {"set": 148, "title": "Universities in Four States", "url": "https://youtube.com/watch?v=MAL5mwhXeL0", "lod": "M", "duration": "00:10:25"}, {"set": 184, "title": "The Missing Report Card", "url": "https://youtube.com/watch?v=ABV2_gb1T4E", "lod": "M", "duration": "00:09:08"}, {"set": 211, "title": "Six Sections - One and Two Mark Questions", "url": "https://youtube.com/watch?v=gH3foagAmq4", "lod": "M", "duration": "00:13:06"}, {"set": 218, "title": "FMCG Companies", "url": "https://youtube.com/watch?v=cNoCmZHNLog", "lod": "M", "duration": "00:08:58"}, {"set": 225, "title": "600 Questions in 6 Days!!!", "url": "https://youtube.com/watch?v=-YIj4moMNBM", "lod": "M", "duration": "00:07:31"}, {"set": 241, "title": "Six CAT Aspirants", "url": "https://youtube.com/watch?v=3l_SqQjzzlE", "lod": "M", "duration": "00:08:47"}, {"set": 255, "title": "Costing of the bags", "url": "https://youtube.com/watch?v=iYfuZHeDBm8", "lod": "M", "duration": "00:05:30"}, {"set": 262, "title": "Travel by bus and car", "url": "https://youtube.com/watch?v=skGKGwm-So0", "lod": "M", "duration": "00:09:23"}, {"set": 305, "title": "It's Appraisal Time", "url": "https://youtube.com/watch?v=2VCCpx5GR1U", "lod": "M", "duration": "00:11:07"}, {"set": 370, "title": "Khoobsoorat Kashmir", "url": "https://youtube.com/watch?v=rPsbGD5x7ew", "lod": "M", "duration": "00:14:13"}, {"set": 58, "title": "Sectional and Overall Cutoffs", "url": "https://youtube.com/watch?v=9KasSws6mN8", "lod": "MD", "duration": "00:09:45"}, {"set": 66, "title": "Batting Average", "url": "https://youtube.com/watch?v=h5eNjsZrQlo", "lod": "MD", "duration": "00:10:15"}, {"set": 75, "title": "The Diagonistic Lab", "url": "https://youtube.com/watch?v=YmuiatwQvz8", "lod": "MD", "duration": "00:07:27"}, {"set": 86, "title": "Rolling the Dice", "url": "https://youtube.com/watch?v=k0hCxDdf5-s", "lod": "MD", "duration": "00:07:59"}, {"set": 133, "title": "T-Shirts of all sizes", "url": "https://youtube.com/watch?v=ktuPutzm2Bs", "lod": "MD", "duration": "00:10:41"}, {"set": 266, "title": "Converting GPA to Marks", "url": "https://youtube.com/watch?v=uUgjV9mwipw", "lod": "MD", "duration": "00:11:17"}, {"set": 277, "title": "Mobiles of 4 brands", "url": "https://youtube.com/watch?v=ElvB9AKlIEk", "lod": "MD", "duration": "00:07:38"}, {"set": 283, "title": "Rating in the Video Game", "url": "https://youtube.com/watch?v=5RpGxHsnFI0", "lod": "MD", "duration": "00:14:59"}, {"set": 297, "title": "MBA and B.Tech Placements", "url": "https://youtube.com/watch?v=EyNH4o6mGxY", "lod": "MD", "duration": "00:06:56"}, {"set": 359, "title": "Sales Target of Agents", "url": "https://youtube.com/watch?v=gF0rEoTpLR0", "lod": "MD", "duration": "00:10:58"}, {"set": 404, "title": "Opening a New Institute", "url": "https://youtube.com/watch?v=-blYQdaeI0I", "lod": "MD", "duration": "00:10:36"}, {"set": 90, "title": "The Recruitment", "url": "https://youtube.com/watch?v=dqvTfoJeIZ0", "lod": "D", "duration": "00:11:04"}, {"set": 254, "title": "Only 5 batsmen get a chance", "url": "https://youtube.com/watch?v=_1zmSJLLOZM", "lod": "D", "duration": "00:12:28"}, {"set": 286, "title": "The Disguised Mock Scores", "url": "https://youtube.com/watch?v=acsBg-2fJLA", "lod": "D", "duration": "00:10:51"}, {"set": 367, "title": "Medals in the History Olympiad", "url": "https://youtube.com/watch?v=zi1bbYwzggI", "lod": "D", "duration": "00:09:31"}]], ["Games & Tournament", [{"set": 106, "title": "India, Pak and 4 Other Teams", "url": "https://youtube.com/watch?v=SNd_ZzprhLI", "lod": "E", "duration": "00:14:32"}, {"set": 237, "title": "The Pool Game", "url": "https://youtube.com/watch?v=OWyUOos379o", "lod": "E", "duration": "00:15:02"}, {"set": 309, "title": "Football tournament of IPL teams", "url": "https://youtube.com/watch?v=QXfjYO5r8Mc", "lod": "E", "duration": "00:06:43"}, {"set": 60, "title": "The last 2 matches", "url": "https://youtube.com/watch?v=ynz4kHZmkM0", "lod": "M", "duration": "00:07:54"}, {"set": 126, "title": "The Amazon Vouchers", "url": "https://youtube.com/watch?v=w6fcdnXGaSA", "lod": "M", "duration": "00:10:13"}, {"set": 216, "title": "Hockey Tournament of Six Teams", "url": "https://youtube.com/watch?v=2QseOlMbvy8", "lod": "M", "duration": "00:08:40"}, {"set": 219, "title": "Tournament of Six Teams", "url": "https://youtube.com/watch?v=u_RhSSFiBBw", "lod": "M", "duration": "00:05:02"}, {"set": 244, "title": "The Game of Darts", "url": "https://youtube.com/watch?v=TfrPT5fgjfg", "lod": "M", "duration": "00:14:41"}, {"set": 274, "title": "One Less Win than Rank", "url": "https://youtube.com/watch?v=YGCCgs9C1sg", "lod": "M", "duration": "00:05:13"}, {"set": 328, "title": "Associate Cricket Teams", "url": "https://youtube.com/watch?v=i9DU2delkLY", "lod": "M", "duration": "00:11:23"}, {"set": 380, "title": "The Weird Football Tournament", "url": "https://youtube.com/watch?v=cmgH2UNn7XA", "lod": "M", "duration": "00:08:35"}, {"set": 23, "title": "70 minute game", "url": "https://youtube.com/watch?v=msciPlxNWJ0", "lod": "MD", "duration": "00:15:42"}, {"set": 26, "title": "One, Two and Three Pointers", "url": "https://youtube.com/watch?v=ceFFEsSIr-A", "lod": "MD", "duration": "00:09:58"}, {"set": 115, "title": "The 11-point Tournament", "url": "https://youtube.com/watch?v=gIH7mgSnaCE", "lod": "MD", "duration": "00:17:06"}, {"set": 139, "title": "Group 1 vs Group 2", "url": "https://youtube.com/watch?v=pjXepk8-4pE", "lod": "MD", "duration": "00:08:55"}, {"set": 208, "title": "Border Gavaskar Trophy", "url": "https://youtube.com/watch?v=94-UcGwNbTU", "lod": "MD", "duration": "00:10:49"}, {"set": 361, "title": "Football before Asia Cup", "url": "https://youtube.com/watch?v=TfgSC7jtdw4", "lod": "MD", "duration": "00:15:59"}, {"set": 388, "title": "Rock Paper Scissors", "url": "https://youtube.com/watch?v=07m_SbAKo-c", "lod": "MD", "duration": "00:09:43"}, {"set": 400, "title": "The Hundred", "url": "https://youtube.com/watch?v=6XiMNGiaZHM", "lod": "MD", "duration": "00:09:43"}, {"set": 14, "title": "Tennis Tournament", "url": "https://youtube.com/watch?v=t8RtET6FGGI", "lod": "D", "duration": "00:12:09"}, {"set": 143, "title": "Double Round Robin League", "url": "https://youtube.com/watch?v=P7bKQCpBCAM", "lod": "D", "duration": "00:04:23"}, {"set": 165, "title": "IPL without MI and CSK", "url": "https://youtube.com/watch?v=D-oVg8Gi0Kg", "lod": "D", "duration": "00:09:04"}, {"set": 176, "title": "Game of Cards", "url": "https://youtube.com/watch?v=yE-8VTY1hnI", "lod": "D", "duration": "00:12:13"}, {"set": 183, "title": "The Poker Chips", "url": "https://youtube.com/watch?v=PSSyC4jIZNI", "lod": "D", "duration": "00:08:09"}, {"set": 188, "title": "The Game of Speed", "url": "https://youtube.com/watch?v=BE4E9815G2U", "lod": "D", "duration": "00:23:16"}, {"set": 250, "title": "The Weightlifting Tournament", "url": "https://youtube.com/watch?v=zxT80sRP9_s", "lod": "D", "duration": "00:05:49"}, {"set": 320, "title": "Friends playing UNO", "url": "https://youtube.com/watch?v=PtEj1rMS694", "lod": "D", "duration": "00:07:09"}, {"set": 353, "title": "Indo Pak Volleyball Match", "url": "https://youtube.com/watch?v=0DiQBbyCeLE", "lod": "D", "duration": "00:16:11"}, {"set": 366, "title": "Dice Game of 5 Rounds", "url": "https://youtube.com/watch?v=OPpkTEqsdGw", "lod": "D", "duration": "00:21:07"}, {"set": 372, "title": "The Addicting Fantasy Game", "url": "https://youtube.com/watch?v=mzGBycNe6Q4", "lod": "D", "duration": "00:06:12"}]], ["Number Puzzle", [{"set": 11, "title": "Festival Celebration in a company", "url": "https://youtube.com/watch?v=i73g_E0H2-0", "lod": "E", "duration": "00:13:34"}, {"set": 12, "title": "Grid of numbers", "url": "https://youtube.com/watch?v=KawFHkN6UTQ", "lod": "E", "duration": "00:10:23"}, {"set": 87, "title": "Ranking in PUBG", "url": "https://youtube.com/watch?v=Z3-AfOCGBRw", "lod": "E", "duration": "00:09:57"}, {"set": 204, "title": "Chemistry Lab Assistant", "url": "https://youtube.com/watch?v=3nMQLn76CZw", "lod": "E", "duration": "00:05:32"}, {"set": 369, "title": "The Magical Temples I", "url": "https://youtube.com/watch?v=kJWGC0zEiHA", "lod": "E", "duration": "00:07:03"}, {"set": 385, "title": "Pyramid of Numbers", "url": "https://youtube.com/watch?v=xScvcK6K-UQ", "lod": "E", "duration": "00:11:55"}, {"set": 108, "title": "The Weird Quiz", "url": "https://youtube.com/watch?v=LP7RemqKDZY", "lod": "M", "duration": "00:14:37"}, {"set": 129, "title": "Grouping of Numbers", "url": "https://youtube.com/watch?v=uE2b3sfeo0k", "lod": "M", "duration": "00:11:26"}, {"set": 192, "title": "Guessing the Roll Number", "url": "https://youtube.com/watch?v=_dVlIjmPdnU", "lod": "M", "duration": "00:08:01"}, {"set": 233, "title": "The Sick Children", "url": "https://youtube.com/watch?v=q7z0n-Agbnc", "lod": "M", "duration": "00:08:00"}, {"set": 357, "title": "When is your Independence Day?", "url": "https://youtube.com/watch?v=VBuXeSf98PQ", "lod": "M", "duration": "00:09:24"}, {"set": 364, "title": "The Bus from New Delhi to IGI", "url": "https://youtube.com/watch?v=5ftibQiu2sE", "lod": "M", "duration": "00:11:32"}, {"set": 373, "title": "Naam? Bhupendra Jogi", "url": "https://youtube.com/watch?v=lwDILiX66wg", "lod": "M", "duration": "00:08:27"}, {"set": 389, "title": "Swimming in three styles", "url": "https://youtube.com/watch?v=rpA_FeZ7gZQ", "lod": "M", "duration": "00:09:37"}, {"set": 8, "title": "Betting on matches", "url": "https://youtube.com/watch?v=M3eWpALVCuw", "lod": "MD", "duration": "00:08:36"}, {"set": 72, "title": "Stealing Books from Library", "url": "https://youtube.com/watch?v=RKz-zmtMaXk", "lod": "MD", "duration": "00:08:21"}, {"set": 199, "title": "The Arithmetic Workshop", "url": "https://youtube.com/watch?v=qsj1q0yvotI", "lod": "MD", "duration": "00:07:13"}, {"set": 228, "title": "Purchasing Books in Primistan", "url": "https://youtube.com/watch?v=P7nlOdG-7Vc", "lod": "MD", "duration": "00:10:49"}, {"set": 322, "title": "The IIT Professors", "url": "https://youtube.com/watch?v=sk5tRMnH6nM", "lod": "MD", "duration": "00:10:10"}, {"set": 327, "title": "Fruits are Healthy for Children", "url": "https://youtube.com/watch?v=tzhvR8WHs7Q", "lod": "MD", "duration": "00:17:06"}, {"set": 343, "title": "Testing Divisibility Rules", "url": "https://youtube.com/watch?v=q6YGx13dwAA", "lod": "MD", "duration": "00:11:50"}, {"set": 348, "title": "Rewarding Kids with Cookies and Chocolates", "url": "https://youtube.com/watch?v=UIJeZkEy11o", "lod": "MD", "duration": "00:07:16"}, {"set": 401, "title": "Thinking of 4 digit numbers", "url": "https://youtube.com/watch?v=6N8eXrPQM_I", "lod": "MD", "duration": "00:11:17"}, {"set": 39, "title": "The Gold Chain Problem", "url": "https://youtube.com/watch?v=IiCDhzlhe6w", "lod": "D", "duration": "00:07:44"}, {"set": 68, "title": "1 to 9 in 3*3 Matrix", "url": "https://youtube.com/watch?v=SjY3b7kowqw", "lod": "D", "duration": "00:11:46"}, {"set": 140, "title": "Sandwich Sudoku", "url": "https://youtube.com/watch?v=bT_pCXGFmAw", "lod": "D", "duration": "00:17:35"}, {"set": 164, "title": "The Six Schools", "url": "https://youtube.com/watch?v=LwubBZhI1YQ", "lod": "D", "duration": "00:07:47"}, {"set": 258, "title": "The God of Cricket", "url": "https://youtube.com/watch?v=2tzP7FQqhjM", "lod": "D", "duration": "00:12:10"}, {"set": 315, "title": "Demonetization 2.0", "url": "https://youtube.com/watch?v=aL5qBbLkMw4", "lod": "D", "duration": "00:18:58"}, {"set": 339, "title": "The Quadathlon", "url": "https://youtube.com/watch?v=Ikpq0S4gvkI", "lod": "D", "duration": "00:10:55"}]], ["Arrangement", [{"set": 54, "title": "3 Trucks and 12 Boxes", "url": "https://youtube.com/watch?v=OVKU5IKaff0", "lod": "E", "duration": "00:09:09"}, {"set": 116, "title": "The Escaping Prisoners", "url": "https://youtube.com/watch?v=N64_Nvfvv0A", "lod": "E", "duration": "00:12:25"}, {"set": 180, "title": "Loading 12 Boxes in 3 Trucks", "url": "https://youtube.com/watch?v=fQ-3g1RjD84", "lod": "E", "duration": "00:09:02"}, {"set": 336, "title": "Seminar of Techies", "url": "https://youtube.com/watch?v=ubyRseAbyjk", "lod": "E", "duration": "00:11:30"}, {"set": 363, "title": "The Participation Photograph", "url": "https://youtube.com/watch?v=VPmIZ0r5XO4", "lod": "E", "duration": "00:12:07"}, {"set": 409, "title": "The Twelve Piano Lessons", "url": "https://youtube.com/watch?v=xNMGAfotIEA", "lod": "E", "duration": "00:07:10"}, {"set": 62, "title": "Seven Parcels", "url": "https://youtube.com/watch?v=PifBZI8UH60", "lod": "M", "duration": "00:04:58"}, {"set": 205, "title": "Twins among Seven Siblings", "url": "https://youtube.com/watch?v=N_OV_AiotTc", "lod": "M", "duration": "00:20:37"}, {"set": 329, "title": "Engineers and Backlogs", "url": "https://youtube.com/watch?v=HL_pZZt87aI", "lod": "M", "duration": "00:09:33"}, {"set": 350, "title": "The Movie Theatre was full", "url": "https://youtube.com/watch?v=sH0xXQJXzGY", "lod": "M", "duration": "00:07:51"}, {"set": 377, "title": "The Pride Parade", "url": "https://youtube.com/watch?v=rZbMJXMGfrY", "lod": "M", "duration": "00:06:20"}, {"set": 412, "title": "The Placement Interviews", "url": "https://youtube.com/watch?v=Ojgn8OcHiUQ", "lod": "M", "duration": "00:07:17"}, {"set": 201, "title": "Employees from Delhi", "url": "https://youtube.com/watch?v=gZ5qSFNa60k", "lod": "MD", "duration": "00:12:43"}, {"set": 302, "title": "Initial Letter of the Name", "url": "https://youtube.com/watch?v=CG9jkFG3xNQ", "lod": "MD", "duration": "00:10:29"}, {"set": 393, "title": "The Clock Game", "url": "https://youtube.com/watch?v=ELABPXFNAm4", "lod": "MD", "duration": "00:06:15"}, {"set": 5, "title": "2017 Slot 2 Set 5", "url": "https://www.youtube.com/watch?v=gubxw62TT9k", "lod": "D", "duration": ""}, {"set": 65, "title": "The Wedding Photoshoot", "url": "https://youtube.com/watch?v=RlKaSfSC5KA", "lod": "D", "duration": "00:07:29"}, {"set": 77, "title": "6 couples on 6 bikes", "url": "https://youtube.com/watch?v=ibY4Y-4rZnE", "lod": "D", "duration": "00:09:20"}, {"set": 82, "title": "Friends watching Ashes", "url": "https://youtube.com/watch?v=ToKPtydq0X0", "lod": "D", "duration": "00:07:19"}, {"set": 174, "title": "The Bike Parking Problem", "url": "https://youtube.com/watch?v=Qpkbn5yRQJg", "lod": "D", "duration": "00:11:09"}]], ["Grid Puzzle", [{"set": 259, "title": "Four Couples in a Food Fest", "url": "https://youtube.com/watch?v=DhMbjHBChvE", "lod": "E", "duration": "00:08:46"}, {"set": 333, "title": "The Disguised Families", "url": "https://youtube.com/watch?v=-1rgBDmUoxQ", "lod": "E", "duration": "00:07:21"}, {"set": 346, "title": "Unlocking the Locks", "url": "https://youtube.com/watch?v=b7jp4XdTwgE", "lod": "E", "duration": "00:07:37"}, {"set": 16, "title": "Sapling Planters", "url": "https://youtube.com/watch?v=bFPmtYFFrFM", "lod": "M", "duration": "00:08:04"}, {"set": 103, "title": "The different CEOs", "url": "https://youtube.com/watch?v=KB49pANkVuM", "lod": "M", "duration": "00:14:43"}, {"set": 147, "title": "Name, Surname and the Hotels", "url": "https://youtube.com/watch?v=iOiDPt2L8vU", "lod": "M", "duration": "00:11:11"}, {"set": 210, "title": "Five Couples", "url": "https://youtube.com/watch?v=Y7NUCtSX6YY", "lod": "M", "duration": "00:09:59"}, {"set": 220, "title": "Solving the Crossword", "url": "https://youtube.com/watch?v=zHh4zrxJqRE", "lod": "M", "duration": "00:11:14"}, {"set": 236, "title": "Answering Questions in the Buzzer Round", "url": "https://youtube.com/watch?v=9n4Az_asVSI", "lod": "M", "duration": "00:09:28"}, {"set": 267, "title": "Remembering the Anniversaries", "url": "https://youtube.com/watch?v=NxCd5X73Fa4", "lod": "M", "duration": "00:06:17"}, {"set": 282, "title": "The Ambitious Children", "url": "https://youtube.com/watch?v=5e78K9UNZMw", "lod": "M", "duration": "00:08:20"}, {"set": 387, "title": "Watching Movies at a Multiplex", "url": "https://youtube.com/watch?v=n_JMNeuImfo", "lod": "M", "duration": "00:06:31"}, {"set": 403, "title": "Choosing Sports at the Sports University", "url": "https://youtube.com/watch?v=-lBP2V_ltlw", "lod": "M", "duration": "00:07:16"}, {"set": 10, "title": "Multinational Presentations", "url": "https://youtube.com/watch?v=dsTf-tX9f0s", "lod": "MD", "duration": "00:24:20"}, {"set": 171, "title": "International Teachers", "url": "https://youtube.com/watch?v=1LAyf_PJf7o", "lod": "MD", "duration": "00:11:12"}, {"set": 321, "title": "Coupon Codes on Food Delivery", "url": "https://youtube.com/watch?v=mSeb2kNgAtA", "lod": "MD", "duration": "00:09:51"}, {"set": 411, "title": "The Logic Olympiad", "url": "https://youtube.com/watch?v=AYKS5RMncIY", "lod": "MD", "duration": "00:21:27"}, {"set": 166, "title": "Born in India, Working Abroad", "url": "https://youtube.com/watch?v=4RCkK8z3Sxg", "lod": "D", "duration": "00:15:53"}, {"set": 194, "title": "Solving different RCs", "url": "https://youtube.com/watch?v=BqJq9Fc9cZI", "lod": "D", "duration": "00:15:15"}, {"set": 217, "title": "MBA Timetable", "url": "https://youtube.com/watch?v=mzkVQNrUXpk", "lod": "D", "duration": "00:05:32"}]], ["Pie Chart", [{"set": 83, "title": "The Cumulative Pie Chart", "url": "https://youtube.com/watch?v=0c6cfhm0Y7g", "lod": "E", "duration": "00:06:49"}, {"set": 160, "title": "The Unknown Expenses", "url": "https://youtube.com/watch?v=JMtOAZyyce8", "lod": "E", "duration": "00:15:15"}, {"set": 269, "title": "Scientists of the SAARC Nations", "url": "https://youtube.com/watch?v=sYjyNCUeQeQ", "lod": "E", "duration": "00:10:13"}, {"set": 1, "title": "Two Parcels", "url": "https://youtube.com/watch?v=wAp-A9gzl9Y", "lod": "M", "duration": "00:06:40"}, {"set": 34, "title": "Employees in 2020 and 2021", "url": "https://youtube.com/watch?v=v-hhx9uohxk", "lod": "M", "duration": "00:14:42"}, {"set": 232, "title": "Archery Competition", "url": "https://youtube.com/watch?v=kHmU73fn6OQ", "lod": "M", "duration": "00:09:07"}, {"set": 243, "title": "The Investment Portfolio", "url": "https://youtube.com/watch?v=aUrkwwAZYVU", "lod": "M", "duration": "00:07:05"}, {"set": 284, "title": "Gold, Silver and Diamond Jewelry", "url": "https://youtube.com/watch?v=AkeSOpLQ6gg", "lod": "M", "duration": "00:08:30"}, {"set": 311, "title": "The Five Business Partners", "url": "https://youtube.com/watch?v=pFYQG0JJlYg", "lod": "M", "duration": "00:10:45"}, {"set": 325, "title": "Family Income and Expenses", "url": "https://youtube.com/watch?v=yEILXFnp04c", "lod": "M", "duration": "00:08:20"}, {"set": 338, "title": "Senior and Non-Senior Train Passengers", "url": "https://youtube.com/watch?v=cXP71PHoQJA", "lod": "M", "duration": "00:07:28"}, {"set": 360, "title": "Weighing the College Students", "url": "https://youtube.com/watch?v=boDHis5JorI", "lod": "M", "duration": "00:07:13"}, {"set": 394, "title": "Professors and Students", "url": "https://youtube.com/watch?v=6TPeG9Uk6FM", "lod": "M", "duration": "00:11:39"}, {"set": 169, "title": "Circulation of Newspapers", "url": "https://youtube.com/watch?v=bS0Le_LIenI", "lod": "MD", "duration": "00:11:19"}, {"set": 172, "title": "Loss Making Company", "url": "https://youtube.com/watch?v=JbP5msOJweQ", "lod": "MD", "duration": "00:08:52"}, {"set": 187, "title": "Expenses of Six Friends", "url": "https://youtube.com/watch?v=rCNaciIK6_c", "lod": "MD", "duration": "00:10:35"}, {"set": 405, "title": "Barfis of Jaunpur", "url": "https://youtube.com/watch?v=T3czPVYRdTs", "lod": "MD", "duration": "00:13:42"}, {"set": 76, "title": "Mutual Fund Sahi Hai", "url": "https://youtube.com/watch?v=VCJWc_DK-CQ", "lod": "D", "duration": "00:07:03"}]], ["Venn Diagram", [{"set": 7, "title": "Cricket, Football and Tennis", "url": "https://youtube.com/watch?v=TWoN_fwd7Ns", "lod": "E", "duration": "00:08:15"}, {"set": 63, "title": "Indoor and Outdoor activities", "url": "https://youtube.com/watch?v=lQU7cmj9V9M", "lod": "M", "duration": "00:09:41"}, {"set": 152, "title": "Tennis, Cricket, Roger and Sachin", "url": "https://youtube.com/watch?v=23UC95twmD0", "lod": "M", "duration": "00:09:16"}, {"set": 227, "title": "The Medical Entrance Test", "url": "https://youtube.com/watch?v=G3CHd926HnU", "lod": "M", "duration": "00:07:15"}, {"set": 256, "title": "Social Media Apps", "url": "https://youtube.com/watch?v=B8o-9-TVe94", "lod": "M", "duration": "00:09:10"}, {"set": 291, "title": "SAS, Python and SQL Training", "url": "https://youtube.com/watch?v=s2TLgDb-doY", "lod": "M", "duration": "00:08:18"}, {"set": 330, "title": "The Soap Survey", "url": "https://youtube.com/watch?v=0bzfaAgYLMI", "lod": "M", "duration": "00:09:48"}, {"set": 341, "title": "Playing Test Cricket in SENA", "url": "https://youtube.com/watch?v=Q5sFN2cUdzk", "lod": "M", "duration": "00:13:08"}, {"set": 30, "title": "Graphic Design Workshop", "url": "https://youtube.com/watch?v=Mc8KHDWan6w", "lod": "MD", "duration": "00:11:24"}, {"set": 95, "title": "ML, Digital Marketing and Blockchain", "url": "https://youtube.com/watch?v=cfToZC7z4CQ", "lod": "MD", "duration": "00:09:05"}, {"set": 212, "title": "Avenger Fans", "url": "https://youtube.com/watch?v=5g9v5HaGOow", "lod": "MD", "duration": "00:09:38"}, {"set": 251, "title": "Happy Vijaya Dashmi", "url": "https://youtube.com/watch?v=fwN_4bXIUJg", "lod": "MD", "duration": "00:11:57"}, {"set": 355, "title": "Visiting the Cafes", "url": "https://youtube.com/watch?v=6fbXeKc1Fvo", "lod": "MD", "duration": "00:13:12"}, {"set": 97, "title": "The Big 4 Firms", "url": "https://youtube.com/watch?v=vDTVaXEyCAc", "lod": "D", "duration": "00:06:55"}, {"set": 177, "title": "Thodi Thodi Piya Karo", "url": "https://youtube.com/watch?v=D42BgXBpFG8", "lod": "D", "duration": "00:11:40"}, {"set": 191, "title": "The Music School", "url": "https://youtube.com/watch?v=8oHPGwJpuSU", "lod": "D", "duration": "00:13:46"}, {"set": 396, "title": "Salesmen visiting cities in UP", "url": "https://youtube.com/watch?v=RmMpxfAQfMM", "lod": "D", "duration": "00:09:48"}]], ["Quantitative Reasoning", [{"set": 157, "title": "Guess the PIN and win cash", "url": "https://youtube.com/watch?v=hmZ8ttiWiSY", "lod": "E", "duration": "00:09:55"}, {"set": 273, "title": "Can you help the PT teacher?", "url": "https://youtube.com/watch?v=qOVYr2aZtjU", "lod": "E", "duration": "00:11:30"}, {"set": 45, "title": "Counseling after Mock test", "url": "https://youtube.com/watch?v=Lm7uHyrHgMg", "lod": "M", "duration": "00:07:40"}, {"set": 56, "title": "The 8 digit Roll Number", "url": "https://youtube.com/watch?v=iusN8unawpA", "lod": "M", "duration": "00:11:33"}, {"set": 61, "title": "Markers of different colors", "url": "https://youtube.com/watch?v=gJjgQpMrDuM", "lod": "M", "duration": "00:07:49"}, {"set": 306, "title": "The Teacher Made a Mistake", "url": "https://youtube.com/watch?v=gBqE5EvyCUk", "lod": "M", "duration": "00:08:22"}, {"set": 313, "title": "The Product Code", "url": "https://youtube.com/watch?v=5Ni_6D9MY5k", "lod": "M", "duration": "00:13:07"}, {"set": 319, "title": "It's raining sixes", "url": "https://youtube.com/watch?v=w5i590FMnU4", "lod": "M", "duration": "00:17:01"}, {"set": 74, "title": "Crossword of Numbers", "url": "https://youtube.com/watch?v=esg8yUbqWUk", "lod": "MD", "duration": "00:13:23"}, {"set": 326, "title": "Volatile Crypto Coins", "url": "https://youtube.com/watch?v=7NVAsh9RJbQ", "lod": "MD", "duration": "00:15:11"}, {"set": 374, "title": "Boys:Girls Mismatch", "url": "https://youtube.com/watch?v=923GEGiCIbQ", "lod": "MD", "duration": "00:10:40"}, {"set": 24, "title": "The ATM pins", "url": "https://youtube.com/watch?v=RzdLO7G3Q74", "lod": "D", "duration": "00:10:13"}, {"set": 57, "title": "Counting by Skipping", "url": "https://youtube.com/watch?v=mcGE2FzRfyk", "lod": "D", "duration": "00:11:49"}, {"set": 335, "title": "Toggling the Doors", "url": "https://youtube.com/watch?v=bqgVYfEFVaY", "lod": "D", "duration": "00:15:33"}, {"set": 347, "title": "The 200 Points Quiz", "url": "https://youtube.com/watch?v=zPdVEaXZTPg", "lod": "D", "duration": "00:09:30"}, {"set": 362, "title": "Numbering the Houses", "url": "https://youtube.com/watch?v=TAqLRJdFMYA", "lod": "D", "duration": "00:08:14"}]], ["Matrix Puzzle", [{"set": 36, "title": "Wedding Anniversary", "url": "https://youtube.com/watch?v=vaIog7RbVXw", "lod": "E", "duration": "00:10:29"}, {"set": 48, "title": "The Beauty Pageant", "url": "https://youtube.com/watch?v=a3Bf4dIWMo8", "lod": "E", "duration": "00:06:25"}, {"set": 296, "title": "Parent Teacher Meeting", "url": "https://youtube.com/watch?v=f5rWXUv4ZkM", "lod": "E", "duration": "00:12:45"}, {"set": 3, "title": "Countries and Capitals", "url": "https://youtube.com/watch?v=9lYMGOJWijg", "lod": "M", "duration": "00:08:18"}, {"set": 42, "title": "6663 - Persons, Dates, Months, Cars", "url": "https://youtube.com/watch?v=gOvdmHbxY0s", "lod": "M", "duration": "00:10:03"}, {"set": 94, "title": "Matching Pet and Profession", "url": "https://youtube.com/watch?v=Fm2DtnoU6qc", "lod": "M", "duration": "00:14:11"}, {"set": 105, "title": "The Seven Chemicals", "url": "https://youtube.com/watch?v=YvQSocoHIMQ", "lod": "M", "duration": "00:07:49"}, {"set": 198, "title": "Rate the Cities", "url": "https://youtube.com/watch?v=E_GTi1bONF0", "lod": "M", "duration": "00:11:00"}, {"set": 4, "title": "Instagram Photos", "url": "https://youtube.com/watch?v=tMXdWIHPsK8", "lod": "MD", "duration": "00:13:26"}, {"set": 49, "title": "The Disounted Movie", "url": "https://youtube.com/watch?v=AtVDW4pjbk0", "lod": "MD", "duration": "00:09:46"}, {"set": 113, "title": "Can you see the Houses?", "url": "https://youtube.com/watch?v=dvy2HpFafUc", "lod": "MD", "duration": "00:09:40"}, {"set": 38, "title": "Can you identify the insects?", "url": "https://youtube.com/watch?v=JWgyJAZv13U", "lod": "D", "duration": "00:15:17"}, {"set": 85, "title": "Minesweeper", "url": "https://youtube.com/watch?v=susj3kvS__s", "lod": "D", "duration": "00:09:57"}, {"set": 134, "title": "Twelve Secret Words", "url": "https://youtube.com/watch?v=vS7CjbRqIYs", "lod": "D", "duration": "00:21:09"}]], ["Line Graph", [{"set": 397, "title": "Dividing the Plot", "url": "https://youtube.com/watch?v=kyqaxPj6KW4", "lod": "E", "duration": "00:07:02"}, {"set": 64, "title": "EXIM Ratio", "url": "https://youtube.com/watch?v=TFfBjci53hk", "lod": "M", "duration": "00:07:53"}, {"set": 73, "title": "Average Age of the Family", "url": "https://youtube.com/watch?v=UXy83FamuYM", "lod": "M", "duration": "00:12:01"}, {"set": 104, "title": "The 1:2:3:4:5:6:7 Trip", "url": "https://youtube.com/watch?v=y93Cav1pud8", "lod": "M", "duration": "00:09:13"}, {"set": 119, "title": "The Breakfast Menu", "url": "https://youtube.com/watch?v=0Ny4NoxTOJ4", "lod": "M", "duration": "00:09:22"}, {"set": 144, "title": "Educational Qualification", "url": "https://youtube.com/watch?v=P0ElFOgfn44", "lod": "M", "duration": "00:10:00"}, {"set": 181, "title": "WhatsApp Messages", "url": "https://youtube.com/watch?v=78oZf__9fn4", "lod": "M", "duration": "00:07:45"}, {"set": 124, "title": "Three Running Trains", "url": "https://youtube.com/watch?v=qqArjALfS6c", "lod": "MD", "duration": "00:11:16"}, {"set": 125, "title": "Top Scoring Players", "url": "https://youtube.com/watch?v=HTzm7EcZfCE", "lod": "MD", "duration": "00:05:46"}, {"set": 368, "title": "6 Food Chain Vendors", "url": "https://youtube.com/watch?v=wtFf-eMUsQ0", "lod": "MD", "duration": "00:07:47"}, {"set": 383, "title": "5 Food Chain Outlets in Metros", "url": "https://youtube.com/watch?v=9g1YH4rioNM", "lod": "MD", "duration": "00:11:48"}, {"set": 91, "title": "Mean and Median Scores", "url": "https://youtube.com/watch?v=3l8FCTCqvwk", "lod": "D", "duration": "00:12:06"}, {"set": 101, "title": "Don't reveal your salary", "url": "https://youtube.com/watch?v=ER7oRg3QspM", "lod": "D", "duration": "00:11:47"}]], ["Scheduling Puzzle", [{"set": 163, "title": "The Prime Ministers and Home Ministers", "url": "https://youtube.com/watch?v=3VsBydW55mg", "lod": "E", "duration": "00:05:43"}, {"set": 213, "title": "Pak PM on a peace tour", "url": "https://youtube.com/watch?v=wnRWC8vQwI4", "lod": "E", "duration": "00:13:46"}, {"set": 35, "title": "CAT, XAT and SNAP Mocks", "url": "https://youtube.com/watch?v=YAz1IUTeyqs", "lod": "M", "duration": "00:06:30"}, {"set": 93, "title": "The Timetable", "url": "https://youtube.com/watch?v=91GbefTLGko", "lod": "M", "duration": "00:09:13"}, {"set": 149, "title": "UPSC Coaching", "url": "https://youtube.com/watch?v=aruBUz2VKKY", "lod": "M", "duration": "00:09:17"}, {"set": 154, "title": "Get Well Soon", "url": "https://youtube.com/watch?v=PlkjdYYYc9M", "lod": "M", "duration": "00:12:52"}, {"set": 224, "title": "Transferring the IAS Officers", "url": "https://youtube.com/watch?v=CErswvyWO0M", "lod": "M", "duration": "00:10:49"}, {"set": 345, "title": "Attempting CMAT with Sectional Timing", "url": "https://youtube.com/watch?v=Yqz4weOvO-s", "lod": "M", "duration": "00:09:39"}, {"set": 382, "title": "A Hectic Day at a B-school", "url": "https://youtube.com/watch?v=CvgtMsueZE4", "lod": "M", "duration": "00:10:41"}, {"set": 167, "title": "Trains to Eight Cities", "url": "https://youtube.com/watch?v=hJP3Ysg4v1M", "lod": "MD", "duration": "00:11:29"}, {"set": 197, "title": "The Retiring Employees", "url": "https://youtube.com/watch?v=QTJWgtcSsoo", "lod": "MD", "duration": "00:08:04"}, {"set": 28, "title": "Date of Joining", "url": "https://youtube.com/watch?v=Eulz7ujEdBQ", "lod": "D", "duration": "00:10:12"}, {"set": 276, "title": "In what order to attempt NMAT?", "url": "https://youtube.com/watch?v=IoyPGTesOPs", "lod": "D", "duration": "00:13:13"}]], ["Conditional Logic", [{"set": 209, "title": "The Murder Mystery", "url": "https://youtube.com/watch?v=DaT-XLYt0-0", "lod": "E", "duration": "00:05:31"}, {"set": 287, "title": "Mislabeled Stationery Boxes", "url": "https://youtube.com/watch?v=vwn_nfwRHK4", "lod": "E", "duration": "00:09:18"}, {"set": 314, "title": "DJ Wale Babu Mera Gaana Baja Do", "url": "https://youtube.com/watch?v=h-gdEQJsoCo", "lod": "E", "duration": "00:08:37"}, {"set": 352, "title": "The Trending Reels", "url": "https://youtube.com/watch?v=mn5zjKtlOE0", "lod": "E", "duration": "00:08:43"}, {"set": 9, "title": "What shirt to wear?", "url": "https://youtube.com/watch?v=sazr5UhvMRc", "lod": "M", "duration": "00:08:44"}, {"set": 252, "title": "Cars in the Showroom", "url": "https://youtube.com/watch?v=VBLsySQ_WSY", "lod": "M", "duration": "00:09:44"}, {"set": 307, "title": "The Dining Menu", "url": "https://youtube.com/watch?v=O-ArkOTmAP0", "lod": "M", "duration": "00:10:38"}, {"set": 324, "title": "Nicknames of Cousins", "url": "https://youtube.com/watch?v=Y9y2C1D-K-A", "lod": "M", "duration": "00:10:52"}, {"set": 365, "title": "Swift, Strong, Smart", "url": "https://youtube.com/watch?v=HHcpVSINCEo", "lod": "M", "duration": "00:09:35"}, {"set": 151, "title": "Keeping Goats and Sheep", "url": "https://youtube.com/watch?v=iYy4a53dFPI", "lod": "MD", "duration": "00:10:41"}, {"set": 159, "title": "Radar Detection", "url": "https://youtube.com/watch?v=CQInljhI-Q4", "lod": "MD", "duration": "00:08:16"}, {"set": 239, "title": "Colorful Chemistry Lab Experiments", "url": "https://youtube.com/watch?v=91xiFJIrvSc", "lod": "MD", "duration": "00:11:55"}]], ["Linear Arrangement", [{"set": 145, "title": "Ten Coloured Houses", "url": "https://youtube.com/watch?v=rOlOU7gnZeE", "lod": "E", "duration": "00:12:45"}, {"set": 206, "title": "Photograph of Cricket Team", "url": "https://youtube.com/watch?v=mWhBTLjsbjc", "lod": "E", "duration": "00:09:39"}, {"set": 25, "title": "Three Colored Houses", "url": "https://youtube.com/watch?v=pTatYwB7weM", "lod": "M", "duration": "00:09:55"}, {"set": 118, "title": "14 People in 2 Rows", "url": "https://youtube.com/watch?v=bq36AeAMK5o", "lod": "M", "duration": "00:07:40"}, {"set": 138, "title": "FMS vs XLRI", "url": "https://youtube.com/watch?v=Lbp_ANWn9gE", "lod": "M", "duration": "00:07:41"}, {"set": 161, "title": "Women of different Origin", "url": "https://youtube.com/watch?v=REGCRLhDpgs", "lod": "M", "duration": "00:11:21"}, {"set": 168, "title": "Sitting with a gap", "url": "https://youtube.com/watch?v=qo3DSvHja94", "lod": "M", "duration": "00:12:57"}, {"set": 290, "title": "Cricketers in a Hotel", "url": "https://youtube.com/watch?v=ZOqh_thGifA", "lod": "M", "duration": "00:07:34"}, {"set": 107, "title": "The Square Roll Numbers", "url": "https://youtube.com/watch?v=KK5wBr9Zre8", "lod": "MD", "duration": "00:09:07"}, {"set": 178, "title": "Three Professional Couples", "url": "https://youtube.com/watch?v=khYoKapFE3U", "lod": "MD", "duration": "00:12:11"}, {"set": 280, "title": "Chocolate Shelves", "url": "https://youtube.com/watch?v=w2IEMxLGZJs", "lod": "D", "duration": "00:11:12"}]], ["Bar Graph", [{"set": 18, "title": "The Two Exams", "url": "https://youtube.com/watch?v=Nc844Ovtx0U", "lod": "M", "duration": "00:06:29"}, {"set": 114, "title": "Single, Double and Triple Door Refrigerators", "url": "https://youtube.com/watch?v=ZdcsbxYw3Ck", "lod": "M", "duration": "00:07:45"}, {"set": 214, "title": "The Increasing Production", "url": "https://youtube.com/watch?v=Uwq3ITwVGtE", "lod": "M", "duration": "00:11:04"}, {"set": 98, "title": "Portion of Boys and Girls", "url": "https://youtube.com/watch?v=_2XRJ37jh88", "lod": "MD", "duration": "00:09:37"}, {"set": 162, "title": "Difference between the Marks", "url": "https://youtube.com/watch?v=biwCdNu9CaU", "lod": "MD", "duration": "00:10:02"}, {"set": 261, "title": "Sales Target of Aptitude Jab", "url": "https://youtube.com/watch?v=IU3XPK8uei0", "lod": "MD", "duration": "00:07:36"}, {"set": 292, "title": "Voters of a Constituency", "url": "https://youtube.com/watch?v=7E9q59r0OfM", "lod": "MD", "duration": "00:13:40"}, {"set": 120, "title": "Different Modes of Transport", "url": "https://youtube.com/watch?v=fpBjqDAV67Y", "lod": "D", "duration": "00:08:03"}, {"set": 257, "title": "Keeping a check on expenses", "url": "https://youtube.com/watch?v=tHZ2uuLgDNc", "lod": "D", "duration": "00:16:17"}]], ["Circular Arrangement", [{"set": 33, "title": "Top 10 Hockey teams", "url": "https://youtube.com/watch?v=xkX6YlD4SSo", "lod": "E", "duration": "00:05:55"}, {"set": 275, "title": "Let's make the cousins sit", "url": "https://youtube.com/watch?v=wSE0uoH8aWY", "lod": "E", "duration": "00:16:29"}, {"set": 203, "title": "Guards of the Concentric Walls", "url": "https://youtube.com/watch?v=CZPIc_xvn4I", "lod": "M", "duration": "00:10:11"}, {"set": 294, "title": "Holding the Cards", "url": "https://youtube.com/watch?v=UMTML2RSRkk", "lod": "M", "duration": "00:14:00"}, {"set": 15, "title": "Musical Chair", "url": "https://youtube.com/watch?v=DLF665tu0AU", "lod": "MD", "duration": "00:09:56"}, {"set": 44, "title": "Multiples of 13 and 17 Years", "url": "https://youtube.com/watch?v=DJ8X-xzjwbM", "lod": "MD", "duration": "00:06:31"}, {"set": 71, "title": "Street Lights", "url": "https://youtube.com/watch?v=UOhMAAG-VaY", "lod": "MD", "duration": "00:08:21"}, {"set": 102, "title": "6 Seats and a Podium", "url": "https://youtube.com/watch?v=uAD9ZACocbA", "lod": "D", "duration": "00:05:58"}]], ["Binary Logic", [{"set": 229, "title": "Teacher Reporting incorrect marks", "url": "https://youtube.com/watch?v=MYQOyEhWdj8", "lod": "E", "duration": "00:08:09"}, {"set": 253, "title": "Placed in Big Companies", "url": "https://youtube.com/watch?v=PaZSufaKxLI", "lod": "E", "duration": "00:08:05"}, {"set": 351, "title": "All Toppers are not Honest", "url": "https://youtube.com/watch?v=FWrCtra0Dzc", "lod": "E", "duration": "00:06:14"}, {"set": 53, "title": "Beer, Rum and Scotch", "url": "https://youtube.com/watch?v=n6jyXl1GSk4", "lod": "M", "duration": "00:09:05"}, {"set": 285, "title": "True False Questions", "url": "https://youtube.com/watch?v=7y2yQR9mugI", "lod": "MD", "duration": "00:09:30"}, {"set": 99, "title": "Top 5 Test Batsmen", "url": "https://youtube.com/watch?v=3XyakLivWto", "lod": "D", "duration": "00:11:58"}, {"set": 136, "title": "The Spice Boxes", "url": "https://youtube.com/watch?v=uWugfNSwcSA", "lod": "D", "duration": "00:14:07"}]], ["Cryptarithmetic", [{"set": 344, "title": "Tribute to BOB MARLEY", "url": "https://youtube.com/watch?v=HPRCzBbcQy4", "lod": "E", "duration": "00:09:38"}, {"set": 230, "title": "The product with an interesting diagonal", "url": "https://youtube.com/watch?v=RSmnvn7s0tI", "lod": "M", "duration": "00:14:25"}, {"set": 371, "title": "The Smart Devotee", "url": "https://youtube.com/watch?v=AkBs0wPofr8", "lod": "M", "duration": "00:09:27"}, {"set": 19, "title": "WHERE + DREAM = WINDOW", "url": "https://youtube.com/watch?v=vMZ8ILYEFdQ", "lod": "D", "duration": "00:10:05"}, {"set": 109, "title": "The Faulty Calculator", "url": "https://youtube.com/watch?v=GitITDNtBc4", "lod": "D", "duration": "00:10:10"}, {"set": 193, "title": "Dividing DEMISE by STEM", "url": "https://youtube.com/watch?v=nzQ0atiovzw", "lod": "D", "duration": "00:07:54"}, {"set": 375, "title": "SPRING add to ALLERGY", "url": "https://youtube.com/watch?v=lHe9V4-roZo", "lod": "D", "duration": "00:09:24"}]], ["Selection", [{"set": 32, "title": "The Volleyball Team", "url": "https://youtube.com/watch?v=_4jzxs5tX9o", "lod": "M", "duration": "00:07:14"}, {"set": 117, "title": "Uttar Airlines", "url": "https://youtube.com/watch?v=OabVHuFwxos", "lod": "M", "duration": "00:07:27"}, {"set": 121, "title": "The Hiking Teams", "url": "https://youtube.com/watch?v=ise14IlLqGc", "lod": "M", "duration": "00:14:38"}, {"set": 238, "title": "The Bird Exhibition", "url": "https://youtube.com/watch?v=GWjDajLC1fU", "lod": "M", "duration": "00:08:13"}, {"set": 391, "title": "Amarnath Yatra", "url": "https://youtube.com/watch?v=-RjJRzatoe0", "lod": "MD", "duration": "00:08:35"}, {"set": 202, "title": "Atithi Devo Bhav", "url": "https://youtube.com/watch?v=ltgAMtDceNM", "lod": "D", "duration": "00:07:59"}, {"set": 226, "title": "The Chief Minister's Cabinet", "url": "https://youtube.com/watch?v=kg54UUqHJXQ", "lod": "D", "duration": "00:06:10"}]], ["Network Diagram", [{"set": 342, "title": "Two-way and One-way Roads", "url": "https://youtube.com/watch?v=jgQd2Py4J4k", "lod": "E", "duration": "00:07:22"}, {"set": 249, "title": "Students Caught Cheating", "url": "https://youtube.com/watch?v=gGgr5Ao75hQ", "lod": "M", "duration": "00:13:10"}, {"set": 288, "title": "Passing On the Information", "url": "https://youtube.com/watch?v=SwdFJBFj1ds", "lod": "M", "duration": "00:06:25"}, {"set": 354, "title": "The Lunch Hour Walk", "url": "https://youtube.com/watch?v=SDGu6oFcm14", "lod": "M", "duration": "00:13:20"}, {"set": 6, "title": "Water Supply to Dams", "url": "https://youtube.com/watch?v=rILrS7o2Ato", "lod": "MD", "duration": "00:07:43"}, {"set": 392, "title": "Chocolate Distribution in School", "url": "https://youtube.com/watch?v=FZCLhRyEotM", "lod": "D", "duration": "00:12:06"}]], ["Order and Ranking", [{"set": 132, "title": "The Greek Friends", "url": "https://youtube.com/watch?v=EIUUZ0rInTQ", "lod": "M", "duration": "00:13:01"}, {"set": 222, "title": "Members of a Group Project", "url": "https://youtube.com/watch?v=0dK1Zt3VFjA", "lod": "M", "duration": "00:09:09"}, {"set": 242, "title": "Cheaters Get Punished", "url": "https://youtube.com/watch?v=j5oSiRfft54", "lod": "M", "duration": "00:07:45"}, {"set": 268, "title": "Teachers in the canteen", "url": "https://youtube.com/watch?v=CGC4qSSGK-c", "lod": "M", "duration": "00:12:02"}, {"set": 27, "title": "Fastest, Heaviest, Tallest", "url": "https://youtube.com/watch?v=vgobGHdZfr0", "lod": "MD", "duration": "00:12:18"}, {"set": 123, "title": "7 Cities, 6 Modes of Transport", "url": "https://youtube.com/watch?v=lz4LEaXMpiU", "lod": "MD", "duration": "00:14:23"}]], ["Maxima and Minima", [{"set": 247, "title": "The Six Hitting Game", "url": "https://youtube.com/watch?v=aJT6C4rCKMA", "lod": "E", "duration": "00:06:29"}, {"set": 271, "title": "Students of MBA Karo", "url": "https://youtube.com/watch?v=K7hJkTgULks", "lod": "MD", "duration": "00:08:23"}, {"set": 356, "title": "The Offices in NCR", "url": "https://youtube.com/watch?v=bNvUTInZIIY", "lod": "MD", "duration": "00:18:39"}, {"set": 150, "title": "Splitting the Food Bill", "url": "https://youtube.com/watch?v=ppCPE0THvvg", "lod": "D", "duration": "00:08:41"}, {"set": 170, "title": "Survey about MacBook and iPhone", "url": "https://youtube.com/watch?v=4SzpaBZOqS0", "lod": "D", "duration": "00:11:52"}]], ["Optimization", [{"set": 81, "title": "Making Shirts and Trousers", "url": "https://youtube.com/watch?v=1841Z_-mp08", "lod": "M", "duration": "00:07:35"}, {"set": 245, "title": "Get Yourself Vaccinated", "url": "https://youtube.com/watch?v=vfjO-69xBug", "lod": "M", "duration": "00:10:53"}, {"set": 130, "title": "Engagements on the Same Day", "url": "https://youtube.com/watch?v=gb4SJXQZnlY", "lod": "MD", "duration": "00:12:29"}, {"set": 235, "title": "Election Result with partial data", "url": "https://youtube.com/watch?v=Sp26780vbY4", "lod": "MD", "duration": "00:08:12"}, {"set": 279, "title": "Boarding and Deboarding the bus", "url": "https://youtube.com/watch?v=eYpvK-nLMIg", "lod": "D", "duration": "00:11:58"}]], ["Cubes", [{"set": 263, "title": "Mr. Binary Cuba", "url": "https://youtube.com/watch?v=ItbM8O7uplo", "lod": "E", "duration": "00:14:43"}, {"set": 135, "title": "Paint them Blue", "url": "https://youtube.com/watch?v=aTXwhyn5mts", "lod": "MD", "duration": "00:11:02"}, {"set": 234, "title": "Painting a Cube with Exotic Colors", "url": "https://youtube.com/watch?v=ygDaZ3Yf1jM", "lod": "MD", "duration": "00:09:19"}, {"set": 50, "title": "Cutting the Cuboid into 120 pieces", "url": "https://youtube.com/watch?v=8u1IIGFzQ24", "lod": "D", "duration": "00:13:04"}]], ["Floor Puzzle", [{"set": 131, "title": "Who Lives Where?", "url": "https://youtube.com/watch?v=TUlF31QZpDQ", "lod": "E", "duration": "00:10:49"}, {"set": 390, "title": "8 Families in a Building", "url": "https://youtube.com/watch?v=X1e5JDm20SM", "lod": "M", "duration": "00:08:52"}, {"set": 185, "title": "Pressing the Wrong Buttons", "url": "https://youtube.com/watch?v=rJgPiLtJzpo", "lod": "MD", "duration": "00:11:20"}, {"set": 156, "title": "Odd and Even Lifts", "url": "https://youtube.com/watch?v=s6SdB5SrREs", "lod": "D", "duration": "00:08:21"}]], ["Table Mapping", [{"set": 402, "title": "FMCG Companies and their products", "url": "https://youtube.com/watch?v=l_wKGriFM_M", "lod": "E", "duration": "00:07:58"}, {"set": 410, "title": "Lehra Do", "url": "https://youtube.com/watch?v=AfQf--BGAeo", "lod": "M", "duration": "00:07:51"}, {"set": 20, "title": "Car and Societies", "url": "https://youtube.com/watch?v=rKwgxUjwIyo", "lod": "D", "duration": "00:10:25"}, {"set": 260, "title": "Dora the Explorer", "url": "https://youtube.com/watch?v=H_bL7-CaiqU", "lod": "D", "duration": "00:11:58"}]], ["Calendar", [{"set": 46, "title": "The Four Helpers", "url": "https://youtube.com/watch?v=eiah5jIE5N8", "lod": "M", "duration": "00:09:54"}]]]
+;
+
+const LOD_LABEL = {E:'Easy', M:'Moderate', MD:'Moderate\u2013Difficult', D:'Difficult'};
+const LOD_ORDER = ['E','M','MD','D'];
+
+const listEl = document.getElementById('chapterList');
+const emptyMsg = document.getElementById('emptyMsg');
+
+const STORAGE_KEY = 'aptitudeJabProgress';
+let completed = {};
+try{
+  completed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+}catch(e){ completed = {}; }
+
+function saveCompleted(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(completed)); }catch(e){}
+}
+
+function toggleCompleted(key, row, check){
+  if(completed[key]){
+    delete completed[key];
+    row.classList.remove('completed');
+    check.classList.remove('checked');
+  } else {
+    completed[key] = true;
+    row.classList.add('completed');
+    check.classList.add('checked');
+  }
+  saveCompleted();
+  updateProgressStat();
+}
+
+function updateProgressStat(){
+  const done = Object.keys(completed).length;
+  const total = DATA.reduce((s, [,items]) => s + items.length, 0);
+  const el = document.getElementById('progressStat');
+  if(el) el.textContent = `${done} / ${total}`;
+}
+
+function ladderHTML(items){
+  const counts = {E:0,M:0,MD:0,D:0};
+  items.forEach(it => counts[it.lod] = (counts[it.lod]||0) + 1);
+  const total = items.length || 1;
+  return LOD_ORDER.map(k => {
+    const pct = (counts[k]/total*100);
+    if(pct <= 0) return '';
+    return `<span class="${k.toLowerCase()}" style="width:${pct}%"></span>`;
+  }).join('');
+}
+
+function playIcon(){
+  return `<svg viewBox="0 0 12 12" fill="currentColor"><path d="M2 1.5v9l8-4.5-8-4.5z"/></svg>`;
+}
+function chevron(){
+  return `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+}
+
+function buildChapter(cat, items, idx){
+  const wrap = document.createElement('div');
+  wrap.className = 'chapter';
+  wrap.dataset.cat = cat.toLowerCase();
+
+  const head = document.createElement('div');
+  head.className = 'chapter-head';
+  head.innerHTML = `
+    <span class="chap-index">${String(idx+1).padStart(2,'0')}</span>
+    <span class="chap-name">${cat}</span>
+    <span class="ladder">${ladderHTML(items)}</span>
+    <span class="chap-count">${items.length} set${items.length>1?'s':''}</span>
+    ${chevron()}
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'chapter-body';
+  const inner = document.createElement('div');
+  inner.className = 'chapter-body-inner';
+
+  const grouped = {};
+  items.forEach(it => { (grouped[it.lod] = grouped[it.lod]||[]).push(it); });
+
+  LOD_ORDER.forEach(lod => {
+    const group = grouped[lod];
+    if(!group || !group.length) return;
+    const g = document.createElement('div');
+    g.className = 'lod-group';
+    g.innerHTML = `<div class="lod-title"><i class="dot ${lod.toLowerCase()}"></i>${LOD_LABEL[lod]}<span class="lod-count">&nbsp;&middot; ${group.length}</span></div>`;
+    group.forEach(it => {
+      const row = document.createElement('div');
+      row.className = `set-row lod-${lod}`;
+      row.dataset.title = it.title.toLowerCase();
+      row.dataset.key = it.url;
+
+      const check = document.createElement('span');
+      check.className = 'set-check';
+      check.title = 'Mark as completed';
+      check.innerHTML = `<svg viewBox="0 0 12 12"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>`;
+      check.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCompleted(it.url, row, check);
+      });
+
+      const a = document.createElement('a');
+      a.className = 'set-link';
+      a.href = it.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = `
+        <span class="set-num">Set ${it.set}</span>
+        <span class="set-title">${it.title}</span>
+        <span class="set-dur">${it.duration.replace(/^00:/,'')}</span>
+        <span class="set-play">${playIcon()}</span>
+      `;
+
+      row.appendChild(check);
+      row.appendChild(a);
+      g.appendChild(row);
+
+      if(completed[it.url]){
+        row.classList.add('completed');
+        check.classList.add('checked');
+      }
+    });
+    inner.appendChild(g);
+  });
+
+  body.appendChild(inner);
+  wrap.appendChild(head);
+  wrap.appendChild(body);
+
+  head.addEventListener('click', () => toggleChapter(wrap, body));
+
+  return wrap;
+}
+
+function toggleChapter(wrap, body){
+  const isOpen = wrap.classList.contains('open');
+  if(isOpen){
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(()=>{ body.style.maxHeight = '0px'; });
+    wrap.classList.remove('open');
+  } else {
+    wrap.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.addEventListener('transitionend', function te(){
+      if(wrap.classList.contains('open')) body.style.maxHeight = 'none';
+      body.removeEventListener('transitionend', te);
+    });
+  }
+}
+
+DATA.forEach(([cat, items], idx) => {
+  listEl.appendChild(buildChapter(cat, items, idx));
+});
+updateProgressStat();
+
+document.getElementById('expandAll').addEventListener('click', () => {
+  document.querySelectorAll('.chapter').forEach(ch => {
+    if(!ch.classList.contains('open')){
+      const body = ch.querySelector('.chapter-body');
+      ch.classList.add('open');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      setTimeout(()=>{ if(ch.classList.contains('open')) body.style.maxHeight='none'; }, 360);
+    }
+  });
+});
+document.getElementById('collapseAll').addEventListener('click', () => {
+  document.querySelectorAll('.chapter.open').forEach(ch => {
+    const body = ch.querySelector('.chapter-body');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(()=>{ body.style.maxHeight = '0px'; });
+    ch.classList.remove('open');
+  });
+});
+
+const search = document.getElementById('search');
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  let anyVisible = false;
+  document.querySelectorAll('.chapter').forEach(ch => {
+    const catMatch = ch.dataset.cat.includes(q);
+    const rows = ch.querySelectorAll('.set-row');
+    let rowMatch = false;
+    rows.forEach(r => {
+      const match = !q || catMatch || r.dataset.title.includes(q);
+      r.style.display = match ? '' : 'none';
+      if(match) rowMatch = true;
+    });
+    const show = !q || catMatch || rowMatch;
+    ch.classList.toggle('hidden', !show);
+    if(show) anyVisible = true;
+    if(q && rowMatch && !catMatch){
+      // auto-expand chapters with matching sets when searching
+      if(!ch.classList.contains('open')){
+        const body = ch.querySelector('.chapter-body');
+        ch.classList.add('open');
+        body.style.maxHeight = body.scrollHeight + 'px';
+        setTimeout(()=>{ if(ch.classList.contains('open')) body.style.maxHeight='none'; }, 360);
+      }
+    } else if(!q){
+      // collapse back on clear
+    }
+  });
+  emptyMsg.classList.toggle('show', !anyVisible);
+});
+</script>
+
+</body>
+</html>

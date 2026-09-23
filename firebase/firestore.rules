@@ -653,5 +653,17 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false; // server-only writes
     }
+
+
+    // --------------------------------------------------
+    // LEARN PROGRESS
+    // --------------------------------------------------
+
+    // One document per student per subject. Doc ID format: {uid}_{subject}
+    // e.g. "abc123_dilr". Students read and write only their own progress.
+    match /learn_progress/{docId} {
+      allow read, write: if signedIn()
+        && docId.matches(request.auth.uid + '_.*');
+    }
   }
 }
