@@ -40,9 +40,9 @@ const nav = [
     href: "/learn",
     free: true,
     children: [
-      { label: "DILR — Aptitude Jab (412 sets)", href: "/learn?subject=dilr" },
-      { label: "Quant (Coming Soon)", href: "/learn?subject=quant" },
-      { label: "VARC (Coming Soon)", href: "/learn?subject=varc" },
+      { label: "DILR", href: "/learn/dilr" },
+      { label: "Quant", href: "/learn/quant" },
+      { label: "VARC", href: "/learn/varc" },
     ],
   },
   {
@@ -72,7 +72,6 @@ const nav = [
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
-  const [learnOpen, setLearnOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -153,19 +152,16 @@ export default function Header() {
           {nav.map((item) =>
             item.children ? (
               <div key={item.label} className="group relative">
-                {item.label === "Practice" || item.label === "Learn" ? (
+                {item.label === "Practice" ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (item.label === "Practice") setPracticeOpen((v) => !v);
-                      if (item.label === "Learn") setLearnOpen((v) => !v);
-                    }}
-                    aria-expanded={item.label === "Practice" ? practiceOpen : learnOpen}
+                    onClick={() => setPracticeOpen((v) => !v)}
+                    aria-expanded={practiceOpen}
                     className="relative flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13px] font-medium text-foreground/75 hover:bg-brand-tint hover:text-brand-darker"
                   >
                     {item.free && <span className="absolute -right-0.5 -top-1.5 rounded-full bg-brand px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-sm shadow-brand/40">FREE</span>}
                     {item.label}
-                    <ChevronDown size={12} className={`text-muted transition-transform duration-200 ${(item.label === "Practice" ? practiceOpen : learnOpen) ? "rotate-180" : ""}`} />
+                    <ChevronDown size={12} className={`text-muted transition-transform duration-200 ${practiceOpen ? "rotate-180" : ""}`} />
                   </button>
                 ) : (
                   <Link href={item.href} className="relative flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13px] font-medium text-foreground/75 hover:bg-brand-tint hover:text-brand-darker">
@@ -179,8 +175,6 @@ export default function Header() {
                 <div className={`${
                   item.label === "Practice"
                     ? (practiceOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0")
-                    : item.label === "Learn"
-                    ? (learnOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0")
                     : "invisible -translate-y-1 opacity-0 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
                 } absolute left-0 top-full pt-2 transition-all duration-150`}>
                   <div className="glass-panel min-w-[230px] rounded-2xl p-1.5">
@@ -188,7 +182,7 @@ export default function Header() {
                       <Link
                         key={child.href}
                         href={child.href}
-                        onClick={() => { setPracticeOpen(false); setLearnOpen(false); }}
+                        onClick={() => { setPracticeOpen(false); }}
                         className="block rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium text-foreground/80 hover:bg-brand-tint hover:text-brand-darker"
                       >
                         {child.label}
@@ -196,6 +190,7 @@ export default function Header() {
                     ))}
                   </div>
                 </div>
+
               </div>
             ) : (
               <Link
@@ -333,11 +328,8 @@ export default function Header() {
                 {item.label === "Practice" || item.label === "Learn" ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (item.label === "Practice") setPracticeOpen((v) => !v);
-                      if (item.label === "Learn") setLearnOpen((v) => !v);
-                    }}
-                    aria-expanded={item.label === "Practice" ? practiceOpen : learnOpen}
+                    onClick={() => setPracticeOpen((v) => !v)}
+                    aria-expanded={practiceOpen}
                     className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[15px] font-medium text-foreground hover:bg-brand-tint"
                   >
                     {item.label}
@@ -350,15 +342,13 @@ export default function Header() {
                   </Link>
                 )}
 
-                {item.children && (
-                  (item.label === "Practice" ? practiceOpen : item.label === "Learn" ? learnOpen : true)
-                ) && (
+                {item.children && (item.label !== "Practice" || practiceOpen) && (
                   <div className="ml-3 mt-0.5 flex flex-col border-l-2 border-brand-tint pl-3">
                     {item.children.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
-                        onClick={() => { setOpen(false); setPracticeOpen(false); setLearnOpen(false); }}
+                        onClick={() => { setOpen(false); setPracticeOpen(false); }}
                         className="rounded-xl px-3 py-2 text-[14px] font-medium text-muted hover:bg-brand-tint hover:text-brand-darker"
                       >
                         {child.label}
@@ -368,6 +358,7 @@ export default function Header() {
                 )}
               </div>
             ))}
+
 
             {/* MOBILE ACCOUNT */}
             <div className="mt-2 border-t border-border/50 pt-2">
