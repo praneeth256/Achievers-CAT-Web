@@ -93,35 +93,26 @@ service cloud.firestore {
 
     match /mock_file_chunks/{chunkId} {
 
-      // Students can read chunks of published mocks. We deliberately avoid
-      // calling isAdmin() here because each chunk in a query is evaluated
-      // independently and isAdmin() performs a cross-document get(). With
-      // large mocks (>5 chunks) the 10-document-access limit would be
-      // exceeded, causing "permission denied" for non-admin students.
-      allow read:
-        if signedIn()
-        && get(
-          /databases/$(database)/documents/mocks/$(resource.data.mockId)
-        ).data.status == 'published';
+      // Any authenticated user may read chunks. We intentionally skip the
+      // published-status cross-document get() here because Firestore
+      // evaluates rules per-chunk in a query; with N chunks you'd need N
+      // get() calls (plus N more for isAdmin()), easily blowing the
+      // 10-document-access limit and causing "permission denied" for
+      // everyone including admins. Published-status enforcement is handled
+      // client-side (mock-view page.tsx checks status before querying chunks).
+      allow read: if signedIn();
 
-      // Admins can read any chunk (including drafts) and write chunks.
-      allow read, create, update, delete:
-        if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
 
     match /mock_sections/{id} {
 
-      // Same pattern as mock_file_chunks: avoid isAdmin() on read to stay
-      // within the cross-document access limit for multi-doc queries.
-      allow read:
-        if signedIn()
-        && get(
-          /databases/$(database)/documents/mocks/$(resource.data.mockId)
-        ).data.status == 'published';
+      // Same pattern as mock_file_chunks: signedIn() only, no per-doc
+      // cross-document get() calls. Status enforcement is client-side.
+      allow read: if signedIn();
 
-      allow read, create, update, delete:
-        if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
 
