@@ -250,6 +250,13 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     if (!mockId || !user) return;
     (async () => {
       try {
+        // Force-refresh the Firebase ID token so Firestore security rules
+        // always see a valid auth claim. Without this, a stale or not-yet-
+        // propagated token can cause `signedIn()` to fail server-side even
+        // when the client believes the user is logged in — producing the
+        // false "permission denied" error on initial page load.
+        await user.getIdToken(/* forceRefresh */ true);
+
         const mockSnapshot = await getDoc(doc(db, "mocks", mockId));
         if (!mockSnapshot.exists() || mockSnapshot.data().status !== "published") throw new Error("This mock is not available.");
         const nextMock = { id: mockSnapshot.id, ...mockSnapshot.data() } as Mock;
@@ -273,21 +280,50 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
         setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source, savedAttempt)); setStatus("loading");
       } catch (error) {
         const msg = error instanceof Error ? error.message : "";
-        // Firestore returns a generic "Missing or insufficient permissions."
-        // for any auth/rules failure. Translate it to something actionable.
+        const code = (error as any)?.code ?? "";
+        // On a permission-denied error, automatically retry once after
+        // a short delay. This handles the edge case where the auth token
+        // was valid but Firestore's evaluation lagged behind the refresh.
         const isPermissions =
           msg.toLowerCase().includes("permission") ||
           msg.toLowerCase().includes("insufficient") ||
-          (error as any)?.code === "permission-denied";
-        setMessage(
-          isPermissions
-            ? "You don't have access to this mock. Please sign in and try again."
-            : msg || "Could not open this mock."
-        );
+          code === "permission-denied";
+        if (isPermissions) {
+          // Wait 1.5 s then retry with a fresh token before giving up.
+          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+          try {
+            await user.getIdToken(true);
+            const retrySnap = await getDoc(doc(db, "mocks", mockId));
+            if (!retrySnap.exists() || retrySnap.data().status !== "published") throw new Error("This mock is not available.");
+            const retryMock = { id: retrySnap.id, ...retrySnap.data() } as Mock;
+            const retryAttempt = await getDoc(doc(db, "attempts", `${user.uid}_${mockId}`));
+            const retryChunks = await getDocs(query(collection(db, "mock_file_chunks"), where("mockId", "==", mockId)));
+            if (retryChunks.empty) throw new Error("This mock file is not available.");
+            const retrySource = retryChunks.docs.map((i) => i.data() as { index: number; content: string }).sort((a, b) => a.index - b.index).map((i) => i.content).join("");
+            let retrySaved = retryAttempt.exists() ? retryAttempt.data() as SavedAttempt : null;
+            if (retrySaved?.status === "in_progress") {
+              const total = Number(retryMock.questions || 0);
+              const percentile = estimatePercentile(0, total, retryMock.difficulty, retryMock.type);
+              retrySaved = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
+              await Promise.all([
+                setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: retryMock.type, section: retryMock.section || null, ...retrySaved, submittedAt: serverTimestamp() }, { merge: true }),
+                setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
+              ]);
+            }
+            setMock(retryMock); attemptRef.current = retrySaved; setAttempt(retrySaved); setHtml(addAchieversBridge(retrySource, retrySaved)); setStatus("loading");
+            return;
+          } catch {
+            // Retry also failed — fall through to the user-facing error.
+          }
+          setMessage("You don't have access to this mock. Please sign out and sign back in, then try again.");
+        } else {
+          setMessage(msg || "Could not open this mock.");
+        }
         setStatus("error");
       }
     })();
   }, [mockId, user]);
+
 
   useEffect(() => {
     const onMessage = async (event: MessageEvent<ResultMessage>) => {
