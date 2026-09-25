@@ -60,26 +60,19 @@ export default function MockCard({ mock }: { mock: MockSummary }) {
             {mock.section && <span>{mock.section}</span>}
           </div>
 
-          {/* Attempted chip */}
           {mock.attempted && (
             <div className="mt-3 inline-flex items-center rounded-xl border border-brand/20 bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-darker">
-              {isFull ? (
-                // Full mock: no percentile, just score
-                <>
-                  Attempted {mock.attempted.attemptedOn} · Score {mock.attempted.score}
-                  {typeof mock.attempted.total === "number" ? `/${mock.attempted.total * 3}` : ""}
-                </>
-              ) : (
-                // Sectional mock: keep percentile
-                <>
-                  Attempted {mock.attempted.attemptedOn} · Score {mock.attempted.score}
-                  {typeof mock.attempted.total === "number" ? `/${mock.attempted.total * 3}` : ""} ·{" "}
-                  {typeof mock.attempted.percentile === "number" && mock.attempted.percentile > 0
-                    ? mock.attempted.percentile.toFixed(2)
-                    : estimatePercentile(mock.attempted.score, mock.attempted.total || mock.questions, mock.difficulty).toFixed(2)}{" "}
-                  %ile
-                </>
-              )}
+              Attempted {mock.attempted.attemptedOn} · Score {mock.attempted.score}
+              {typeof mock.attempted.total === "number" ? `/${mock.attempted.total * 3}` : ""} ·{" "}
+              {typeof mock.attempted.percentile === "number" && mock.attempted.percentile > 0
+                ? mock.attempted.percentile.toFixed(2)
+                : estimatePercentile(
+                    mock.attempted.score,
+                    mock.attempted.total || mock.questions,
+                    mock.difficulty,
+                    mock.type
+                  ).toFixed(2)}{" "}
+              %ile
             </div>
           )}
         </div>

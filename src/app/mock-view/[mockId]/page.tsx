@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { doc, getDoc, getDocs, query, collection, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { Loader2, UserRound } from "lucide-react";
+import { AlertTriangle, Loader2, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase/client";
@@ -263,7 +263,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
         // zero-score submission before showing the iframe again.
         if (savedAttempt?.status === "in_progress") {
           const total = Number(nextMock.questions || 0);
-          const percentile = estimatePercentile(0, total, nextMock.difficulty);
+          const percentile = estimatePercentile(0, total, nextMock.difficulty, nextMock.type);
           savedAttempt = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
           await Promise.all([
             setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: nextMock.type, section: nextMock.section || null, ...savedAttempt, submittedAt: serverTimestamp() }, { merge: true }),
@@ -341,7 +341,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           // Persist the completed score before calculating ranks. The live
           // sectional list listens to this document, so it updates as soon as
           // the result is available instead of waiting on every rank record.
-          const provisionalPercentile = estimatePercentile(score, total, mock.difficulty);
+          const provisionalPercentile = estimatePercentile(score, total, mock.difficulty, mock.type);
           const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds };
           // The uploaded test has already switched to its result screen. Show
           // the student's score immediately; Firestore/ranking writes can
@@ -353,7 +353,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           const rankingSnapshot = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)));
           const rankings = rankingSnapshot.docs.map((item) => item.data() as RankingAttempt).filter((item) => item.userId !== user.uid);
           rankings.push({ userId: user.uid, score, correct, wrong });
-          const percentile = calculatePercentiles(rankings, total, mock.difficulty).get(user.uid) || 0;
+          const percentile = calculatePercentiles(rankings, total, mock.difficulty, mock.type).get(user.uid) || 0;
           await Promise.all([
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
             setDoc(attemptDocument, { percentile }, { merge: true }),
@@ -384,7 +384,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
       const currentMock = mockRef.current;
       if (currentAttempt?.status !== "in_progress" || !currentMock) return;
       const total = Number(currentMock.questions || 0);
-      const percentile = estimatePercentile(0, total, currentMock.difficulty);
+      const percentile = estimatePercentile(0, total, currentMock.difficulty, currentMock.type);
       // Change the local state first so a simultaneous unload cannot let a
       // late submission overwrite this final zero-score attempt.
       const abandoned: SavedAttempt = { status: "submitted", score: 0, total, correct: 0, wrong: 0, percentile, answers: {}, timeTakenSeconds: 0 };
@@ -441,6 +441,120 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     </div>
   );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
-  const percentile = attempt?.status === "submitted" ? (typeof attempt.percentile === "number" && attempt.percentile > 0 ? attempt.percentile : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty)) : null;
-  return <div className="min-h-screen bg-surface-muted"><div className="flex items-center justify-end border-b border-border bg-white px-4 py-2"><div className="flex items-center gap-2 text-sm font-medium text-foreground">{percentile !== null && <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-darker">Score {attempt?.score} · {percentile.toFixed(2)} %ile</span>}{user.photoURL ? <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-darker"><UserRound size={16} /></span>}<span>{user.displayName || "Student"}</span></div></div><iframe ref={frameRef} srcDoc={html} onLoad={restoreAnalysis} sandbox="allow-scripts allow-forms" title={mock?.name || "Mock"} className="min-h-[calc(100vh-49px)] w-full border-0" /></div>;
+  const percentile = attempt?.status === "submitted"
+    ? (typeof attempt.percentile === "number" && attempt.percentile > 0
+        ? attempt.percentile
+        : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty, mock?.type))
+    : null;
+  const isInProgress = attempt?.status === "in_progress";
+  return <MockViewShell
+    mock={mock}
+    user={user}
+    frameRef={frameRef}
+    html={html}
+    percentile={percentile}
+    score={attempt?.score}
+    isInProgress={isInProgress}
+    restoreAnalysis={restoreAnalysis}
+  />;
+}
+
+/* ── Separate shell component keeps the JSX readable ────────────────── */
+function MockViewShell({
+  mock, user, frameRef, html, percentile, score, isInProgress, restoreAnalysis,
+}: {
+  mock: { name?: string; type?: string } | null;
+  user: User;
+  frameRef: React.RefObject<HTMLIFrameElement | null>;
+  html: string;
+  percentile: number | null;
+  score?: number;
+  isInProgress: boolean;
+  restoreAnalysis: () => void;
+}) {
+  const [exitModalOpen, setExitModalOpen] = useState(false);
+
+  function handleExitClick() {
+    if (isInProgress) { setExitModalOpen(true); return; }
+    window.close();
+  }
+
+  function confirmExit() {
+    // Allow the pagehide handler in the parent to record 0 marks.
+    window.close();
+    // Fallback in case window.close() is blocked (some browsers).
+    window.location.href = "/mocks";
+  }
+
+  return (
+    <div className="min-h-screen bg-surface-muted">
+      {/* Top bar */}
+      <div className="flex items-center justify-between border-b border-border bg-white px-4 py-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          {percentile !== null && (
+            <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-darker">
+              Score {score} · {percentile.toFixed(2)} %ile
+            </span>
+          )}
+          {user.photoURL
+            ? <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full object-cover" />
+            : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-darker"><UserRound size={16} /></span>}
+          <span>{user.displayName || "Student"}</span>
+        </div>
+        {isInProgress && (
+          <button
+            onClick={handleExitClick}
+            className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[12.5px] font-semibold text-red-600 hover:bg-red-100 transition"
+          >
+            <LogOut size={13} /> Exit Mock
+          </button>
+        )}
+      </div>
+
+      {/* Iframe */}
+      <iframe
+        ref={frameRef}
+        srcDoc={html}
+        onLoad={restoreAnalysis}
+        sandbox="allow-scripts allow-forms"
+        title={mock?.name || "Mock"}
+        className="min-h-[calc(100vh-49px)] w-full border-0"
+      />
+
+      {/* Exit-warning modal */}
+      {exitModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle size={20} className="text-red-600" />
+              </span>
+              <div>
+                <p className="font-display text-[16px] font-bold text-foreground">Exit this mock?</p>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+                  If you close or leave now, your attempt will be marked as{" "}
+                  <span className="font-bold text-red-600">0 marks</span> and you will{" "}
+                  <span className="font-semibold text-foreground">not be able to retake</span> this mock.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                onClick={() => setExitModalOpen(false)}
+                className="w-full rounded-xl bg-brand px-4 py-2.5 text-[13.5px] font-semibold text-white hover:bg-brand-dark transition"
+              >
+                Continue Exam
+              </button>
+              <button
+                onClick={confirmExit}
+                className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] font-semibold text-red-600 hover:bg-red-100 transition"
+              >
+                Exit Anyway (0 marks)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
