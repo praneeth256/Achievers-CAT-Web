@@ -13,12 +13,12 @@ import { logActivity } from "@/lib/firebase/activity";
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
 // "submitting" exists only in the running page.  It prevents an unload from
 // turning a completed test into a zero while its Firestore writes finish.
-type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number };
-type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number };
+type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number; fullMock?: boolean };
+type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean };
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const restorePayload = savedAttempt?.status === "submitted"
-    ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0 }).replace(/<\//g, "<\\/")
+    ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0, fullMock: savedAttempt.fullMock === true }).replace(/<\//g, "<\\/")
     : "null";
   // Keep the regular-expression escapes intact in the script injected into
   // the uploaded HTML. A normal template literal consumes escapes such as
@@ -55,7 +55,9 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         }
       }
       function reportNewMockResult(savedResult) {
-        if (sent || typeof TEST_META === 'undefined' || (!savedResult && typeof loadAllResults !== 'function')) return;
+        // A full mock saves each section internally. Those are progress
+        // checkpoints, not completed platform attempts.
+        if (sent || (typeof fullMockActive !== 'undefined' && fullMockActive) || typeof TEST_META === 'undefined' || (!savedResult && typeof loadAllResults !== 'function')) return;
         var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
         // Sandboxed srcDoc files cannot always access localStorage. The new
         // mock hands the complete result to saveResult(), so prefer that
@@ -74,7 +76,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         });
       }
       function reportNewMockState() {
-        if (sent || typeof TEST_META === 'undefined' || typeof answers === 'undefined') return;
+        if (sent || (typeof fullMockActive !== 'undefined' && fullMockActive) || typeof TEST_META === 'undefined' || typeof answers === 'undefined') return;
         var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
         var questions = typeof currentQuestions === 'function' ? currentQuestions() : (typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId] ? QUESTION_BANK[testId] : []);
         if (!questions || !questions.length) return;
@@ -93,6 +95,24 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         });
       }
       function restoreNewMockResult(data) {
+        if (data && data.fullMock && typeof FULL_MOCK_SECTIONS !== 'undefined' && typeof showFullMockResults === 'function') {
+          fullMockSectionResults = FULL_MOCK_SECTIONS.map(function (testId, sectionIndex) {
+            var questions = (typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId]) || [];
+            var sectionAnswers = {};
+            var correct = 0, wrong = 0, wrongMCQ = 0, wrongTITA = 0, skip = 0;
+            questions.forEach(function (question, index) {
+              var answer = (data.answers || {})[String(testId) + ':' + index];
+              if (answer === undefined || answer === '') { skip++; return; }
+              sectionAnswers[index] = answer;
+              if (String(answer).trim() === String(question.correct).trim()) correct++;
+              else { wrong++; if (question.qType === 'MCQ') wrongMCQ++; else wrongTITA++; }
+            });
+            return { si: sectionIndex, testId: testId, label: (typeof FULL_MOCK_LABELS !== 'undefined' && FULL_MOCK_LABELS[sectionIndex]) || ('Section ' + (sectionIndex + 1)), correct: correct, wrong: wrong, wrongMCQ: wrongMCQ, wrongTITA: wrongTITA, skip: skip, total: questions.length, marks: correct * 3 - wrongMCQ, maxMarks: questions.length * 3, usedSecs: 0, answers: sectionAnswers, questionTimeSec: {} };
+          });
+          fullMockActive = false;
+          showFullMockResults();
+          return true;
+        }
         if (typeof TEST_META === 'undefined' || !TEST_META[0] || typeof renderResultScreen !== 'function' || typeof showScreen !== 'function') return false;
         var testId = TEST_META[0].id;
         var questions = typeof QUESTION_BANK !== 'undefined' && QUESTION_BANK[testId] ? QUESTION_BANK[testId] : [];
@@ -126,6 +146,29 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       }
       function installNewMockHooks() {
         if (typeof TEST_META === 'undefined') return false;
+        if (typeof showFullMockResults === 'function' && !showFullMockResults.__achieversHooked) {
+          var originalShowFullMockResults = showFullMockResults;
+          window.showFullMockResults = function () {
+            var value = originalShowFullMockResults.apply(this, arguments);
+            if (!sent && typeof fullMockSectionResults !== 'undefined') {
+              var score = 0, total = 0, correct = 0, wrong = 0, timeTakenSeconds = 0, allAnswers = {};
+              fullMockSectionResults.forEach(function (sectionResult) {
+                score += Number(sectionResult.marks || 0);
+                total += Number(sectionResult.total || 0);
+                correct += Number(sectionResult.correct || 0);
+                wrong += Number(sectionResult.wrong || 0);
+                timeTakenSeconds += Number(sectionResult.usedSecs || 0);
+                Object.keys(sectionResult.answers || {}).forEach(function (index) { allAnswers[String(sectionResult.testId) + ':' + index] = sectionResult.answers[index]; });
+              });
+              if (fullMockSectionResults.length && total) {
+                sent = true;
+                send('submitted', { score: score, total: total, correct: correct, wrong: wrong, answers: allAnswers, timeTakenSeconds: timeTakenSeconds, fullMock: true });
+              }
+            }
+            return value;
+          };
+          window.showFullMockResults.__achieversHooked = true;
+        }
         if (typeof showResults === 'function' && !showResults.__achieversHooked) {
           var originalShowResults = showResults;
           window.showResults = function () {
@@ -219,7 +262,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
     // or line breaks in this function declaration. Match the declaration,
     // not one exact formatting style, so every CAT-style template reports its
     // result before displaying its result screen.
-    .replace(/function\s+saveResult\s*\(\s*testId\s*,\s*data\s*\)\s*\{/, "function saveResult(testId,data){ window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
+    .replace(/function\s+saveResult\s*\(\s*testId\s*,\s*data\s*\)\s*\{/, "function saveResult(testId,data){ if (!(typeof fullMockActive !== 'undefined' && fullMockActive)) window.parent.postMessage({ source: 'achievers-mock', type: 'submitted', score: Number(data.marks || 0), total: Number(data.total || 0), correct: Number(data.correct || 0), wrong: Number(data.wrong || 0), answers: data.answers || {}, timeTakenSeconds: Number(data.timeUsedSec || 0) }, '*');")
     .replace("function startExam(testId,minutes){", "function startExam(testId,minutes){ window.parent.postMessage({ source: 'achievers-mock', type: 'started' }, '*');")
     .replace("function retryExam() {", "function retryExam() { if (window.__achieversAnalysis) return;")
     .replace("</body>", `<script>window.__achieversRestorePayload=${restorePayload};</script>${bridge}</body>`);
@@ -378,7 +421,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           // sectional list listens to this document, so it updates as soon as
           // the result is available instead of waiting on every rank record.
           const provisionalPercentile = estimatePercentile(score, total, mock.difficulty, mock.type);
-          const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds };
+          const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds, fullMock: data.fullMock === true };
           // The uploaded test has already switched to its result screen. Show
           // the student's score immediately; Firestore/ranking writes can
           // finish afterwards without making the result look blank or stale.
@@ -449,7 +492,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
 
   function restoreAnalysis() {
     const savedAttempt = attemptRef.current;
-    if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, timeTakenSeconds: savedAttempt.timeTakenSeconds }, "*");
+    if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, timeTakenSeconds: savedAttempt.timeTakenSeconds, fullMock: savedAttempt.fullMock === true }, "*");
   }
 
   if (authLoading) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Restoring your session…</div>;
