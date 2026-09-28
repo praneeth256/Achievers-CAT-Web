@@ -27,6 +27,52 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
     (function () {
       var sent = false;
       function send(type, extra) { window.parent.postMessage(Object.assign({ source: 'achievers-mock', type: type }, extra || {}), '*'); }
+      function addLegacyReviewButton() {
+        if (typeof QUESTIONS === 'undefined' || !QUESTIONS.length || document.getElementById('achievers-legacy-review')) return;
+        var result = document.getElementById('result-screen') || document.querySelector('[id*="result" i], [class*="result" i]');
+        if (!result) return;
+        var button = document.createElement('button');
+        button.id = 'achievers-legacy-review';
+        button.type = 'button';
+        button.textContent = 'View Questions & Explanations';
+        button.style.cssText = 'margin:16px auto;display:block;border:0;border-radius:8px;background:#1976b9;color:white;padding:11px 16px;font:600 14px Arial,sans-serif;cursor:pointer;';
+        button.onclick = openLegacyReview;
+        result.appendChild(button);
+      }
+      function openLegacyReview() {
+        if (typeof QUESTIONS === 'undefined') return;
+        var existing = document.getElementById('achievers-legacy-review-modal');
+        if (existing) { existing.style.display = 'block'; return; }
+        var modal = document.createElement('div');
+        modal.id = 'achievers-legacy-review-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:auto;background:rgba(15,23,42,.72);padding:20px;font-family:Arial,sans-serif;';
+        var escapeText = function (value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+        var rows = QUESTIONS.map(function (question, index) {
+          var answer = typeof answers !== 'undefined' ? answers[index] : undefined;
+          var correct = question.correct == null ? '' : String(question.correct);
+          var answered = answer !== undefined && answer !== '';
+          var isCorrect = answered && String(answer).trim() === correct.trim();
+          var status = !answered ? 'Not attempted' : (isCorrect ? 'Correct' : 'Incorrect');
+          var colour = !answered ? '#64748b' : (isCorrect ? '#15803d' : '#b91c1c');
+          var prompt = question.text || question.question || question.questionText || ('Question ' + (index + 1));
+          var explanation = question.solution || question.explanation || question.rationale || 'No written explanation was included in this uploaded mock.';
+          var options = (question.options || []).map(function (option, optionIndex) {
+            var value = typeof option === 'object' ? (option.num || option.value || optionIndex + 1) : optionIndex + 1;
+            var label = typeof option === 'object' ? (option.text || option.label || value) : option;
+            return '<li style="margin:6px 0;">' + value + '. ' + label + '</li>';
+          }).join('');
+          return '<article style="border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin:14px 0;background:#fff;">'
+            + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><b>Question ' + (index + 1) + '</b><span style="color:' + colour + ';font-weight:700;">' + status + '</span></div>'
+            + '<div style="margin-top:12px;line-height:1.6;color:#1e293b;">' + prompt + '</div>'
+            + (options ? '<ol style="padding-left:20px;line-height:1.5;">' + options + '</ol>' : '')
+            + '<div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#f8fafc;font-size:13px;"><b>Your answer:</b> ' + (answered ? escapeText(answer) : '—') + '<br><b>Correct answer:</b> ' + escapeText(correct) + '</div>'
+            + '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;"><b>Explanation</b><div style="margin-top:6px;line-height:1.6;">' + explanation + '</div></div></article>';
+        }).join('');
+        modal.innerHTML = '<div style="max-width:960px;margin:0 auto 30px;background:#f8fafc;border-radius:16px;padding:20px;">'
+          + '<div style="display:flex;justify-content:space-between;gap:16px;align-items:center;"><div><h2 style="margin:0;color:#0f172a;font-size:22px;">Question Review</h2><p style="margin:5px 0 0;color:#64748b;font-size:13px;">Your answers, correct answers, and explanations</p></div><button type="button" id="achievers-close-review" style="border:0;background:#e2e8f0;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700;">Close</button></div>' + rows + '</div>';
+        document.body.appendChild(modal);
+        document.getElementById('achievers-close-review').onclick = function () { modal.remove(); };
+      }
       function reportResult() {
         if (sent || typeof QUESTIONS === 'undefined' || typeof answers === 'undefined') return;
         sent = true;
@@ -38,6 +84,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           if (isCorrect) { correct++; score += 3; }
           else { wrong++; if (q.q_type === 'MCQ') score -= 1; }
         });
+        addLegacyReviewButton();
         send('submitted', { score: score, total: QUESTIONS.length, correct: correct, wrong: wrong, answers: answers, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
       }
       function reportVisibleResult() {
@@ -50,6 +97,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           var match = text.match(/(?:score|marks?)[^0-9-]*(-?[0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*([0-9]+))?/i) || text.match(/(-?[0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+)[\s\S]{0,80}?(?:net marks|score)/i);
           if (!match) continue;
           sent = true;
+          addLegacyReviewButton();
           send('submitted', { score: Number(match[1]), total: typeof QUESTIONS !== 'undefined' ? QUESTIONS.length : (match[2] ? Math.round(Number(match[2]) / 3) : 0), correct: 0, wrong: 0, answers: typeof answers !== 'undefined' ? answers : {}, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
           return;
         }

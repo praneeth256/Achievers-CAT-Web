@@ -15,6 +15,7 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
+import VideoNotes from "@/components/VideoNotes";
 import {
   DILR_CHAPTERS,
   LOD_LABEL,
@@ -25,6 +26,7 @@ import {
   type VideoItem,
   getEmbedUrl,
   getThumbUrl,
+  getYouTubeId,
 } from "@/lib/learnData";
 
 /* ─── Difficulty styling ─────────────────────────────────────────────── */
@@ -43,7 +45,7 @@ const LOD_TEXT: Record<LodKey, string> = {
 };
 
 /* ─── YouTube embed ──────────────────────────────────────────────────── */
-function VideoPlayer({ video, chapterName }: { video: VideoItem; chapterName: string }) {
+function VideoPlayer({ video, chapterName, userId }: { video: VideoItem; chapterName: string; userId: string | null }) {
   const embedUrl = getEmbedUrl(video.url);
   return (
     <div className="flex flex-col gap-3">
@@ -85,6 +87,7 @@ function VideoPlayer({ video, chapterName }: { video: VideoItem; chapterName: st
           )}
         </div>
       </div>
+      <VideoNotes userId={userId} videoId={`dilr-aptitude-jab-${getYouTubeId(video.url) || video.set}`} />
     </div>
   );
 }
@@ -356,7 +359,7 @@ function AptitudeJabPlayer() {
         <div className="min-w-0 flex-1 space-y-5">
           {activeVideo && activeChapter && (
             <div className="glass-card-solid p-4 sm:p-5">
-              <VideoPlayer video={activeVideo} chapterName={activeChapter.name} />
+              <VideoPlayer video={activeVideo} chapterName={activeChapter.name} userId={uid} />
             </div>
           )}
 

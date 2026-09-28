@@ -52,6 +52,13 @@ service cloud.firestore {
         if isAdmin();
     }
 
+    // One private note per student and video. The parent path intentionally
+    // includes the student's uid so a student cannot read or write another
+    // student's notes, even if they know a video document ID.
+    match /users/{uid}/videoNotes/{videoId} {
+      allow read, create, update, delete: if isOwner(uid);
+    }
+
     match /materials/{materialId} {
       allow read:
         if resource.data.published == true || isAdmin();

@@ -15,9 +15,11 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
+import VideoNotes from "@/components/VideoNotes";
 import {
   getPYQEmbedUrl,
   getPYQThumbUrl,
+  getYTId,
   TOTAL_PYQ_SETS,
   PYQ_YEARS,
   type PYQSet,
@@ -41,10 +43,12 @@ function VideoPlayer({
   item,
   year,
   slot,
+  userId,
 }: {
   item: PYQSet;
   year: string;
   slot: string;
+  userId: string | null;
 }) {
   const embedUrl = getPYQEmbedUrl(item.url);
   return (
@@ -89,6 +93,7 @@ function VideoPlayer({
           )}
         </div>
       </div>
+      <VideoNotes userId={userId} videoId={`dilr-goat-pyq-${year}-${slot.replace(/\s+/g, "-").toLowerCase()}-${getYTId(item.url) || item.set}`} />
     </div>
   );
 }
@@ -425,6 +430,7 @@ function GoatCatPlayer() {
                 item={activeItem.item}
                 year={activeYear.year}
                 slot={activeItem.slot}
+                userId={uid}
               />
             </div>
           )}
