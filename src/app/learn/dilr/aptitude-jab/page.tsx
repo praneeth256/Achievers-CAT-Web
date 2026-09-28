@@ -45,10 +45,20 @@ const LOD_TEXT: Record<LodKey, string> = {
 };
 
 /* ─── YouTube embed ──────────────────────────────────────────────────── */
-function VideoPlayer({ video, chapterName, userId }: { video: VideoItem; chapterName: string; userId: string | null }) {
+function VideoPlayer({ video, chapterName, userId, completedCount }: { video: VideoItem; chapterName: string; userId: string | null; completedCount: number }) {
   const embedUrl = getEmbedUrl(video.url);
+  const completionPercent = Math.round((completedCount / TOTAL_DILR_SETS) * 100);
   return (
     <div className="flex flex-col gap-3">
+      <div className="rounded-xl border border-brand/15 bg-brand-tint/60 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 text-[12px]">
+          <span className="font-semibold text-foreground">Aptitude Jab completion</span>
+          <span className="font-bold text-brand-darker">{completedCount}/{TOTAL_DILR_SETS} videos · {completionPercent}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-brand to-brand-dark transition-all duration-700" style={{ width: `${completionPercent}%` }} />
+        </div>
+      </div>
       <div
         className="relative overflow-hidden rounded-2xl bg-foreground/5 shadow-lg shadow-black/10"
         style={{ aspectRatio: "16/9" }}
@@ -359,7 +369,7 @@ function AptitudeJabPlayer() {
         <div className="min-w-0 flex-1 space-y-5">
           {activeVideo && activeChapter && (
             <div className="glass-card-solid p-4 sm:p-5">
-              <VideoPlayer video={activeVideo} chapterName={activeChapter.name} userId={uid} />
+              <VideoPlayer video={activeVideo} chapterName={activeChapter.name} userId={uid} completedCount={totalDone} />
             </div>
           )}
 
