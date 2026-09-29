@@ -36,7 +36,11 @@ const medalColors = ["text-yellow-500", "text-slate-400", "text-amber-600"];
 export default function MockCard({ mock }: { mock: MockSummary }) {
   const href = `/mock-view/${mock.id}`;
   const isFull = mock.type === "full";
-  const hasCompleteAttempt = !!mock.attempted && (!isFull || mock.attempted.fullMock === true);
+  // Historical full-mock attempts predate the `fullMock` marker. Keep every
+  // submitted attempt accessible; only suppress a score chip if its saved
+  // total proves it is a single section rather than the entire paper.
+  const hasAttempt = !!mock.attempted;
+  const hasCompleteScore = hasAttempt && (!isFull || Number(mock.attempted?.total || 0) >= mock.questions);
 
   return (
     <div className="flex flex-col gap-0 rounded-2xl border border-border bg-white transition hover:border-brand hover:shadow-md hover:shadow-brand/[0.06]">
@@ -62,7 +66,7 @@ export default function MockCard({ mock }: { mock: MockSummary }) {
             {mock.section && <span>{mock.section}</span>}
           </div>
 
-          {hasCompleteAttempt && mock.attempted && (
+          {hasCompleteScore && mock.attempted && (
             <div className="mt-3 inline-flex items-center rounded-xl border border-brand/20 bg-brand-tint px-3 py-2 text-[13px] font-semibold text-brand-darker">
               Attempted {mock.attempted.attemptedOn} · Score {mock.attempted.score}
               {typeof mock.attempted.total === "number" ? `/${mock.attempted.total * 3}` : ""} ·{" "}
@@ -85,7 +89,7 @@ export default function MockCard({ mock }: { mock: MockSummary }) {
           rel="noopener noreferrer"
           className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-brand px-4 py-2 text-[13.5px] font-semibold text-white transition hover:bg-brand-dark"
         >
-          {hasCompleteAttempt ? "Mock Analysis" : "Open Mock"} <ArrowUpRight size={14} />
+          {hasAttempt ? "Mock Analysis" : "Open Mock"} <ArrowUpRight size={14} />
         </Link>
       </div>
 

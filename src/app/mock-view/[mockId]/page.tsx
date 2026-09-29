@@ -602,7 +602,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     </div>
   );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
-  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true)
+  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true || Number(attempt.total || 0) >= Number(mock?.questions || 0))
     ? (typeof attempt.percentile === "number" && attempt.percentile > 0
         ? attempt.percentile
         : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty, mock?.type))
