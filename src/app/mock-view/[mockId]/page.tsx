@@ -27,6 +27,31 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
     (function () {
       var sent = false;
       function send(type, extra) { window.parent.postMessage(Object.assign({ source: 'achievers-mock', type: type }, extra || {}), '*'); }
+      function isLegacyMultiSectionMock() {
+        if (typeof TEST_META !== 'undefined') return false;
+        var text = (document.body && document.body.textContent || '').toUpperCase();
+        return text.indexOf('VARC') !== -1 && text.indexOf('DILR') !== -1 && text.indexOf('QA') !== -1;
+      }
+      function reportLegacyFullMockResult() {
+        if (sent || !isLegacyMultiSectionMock()) return false;
+        var result = document.getElementById('result-screen') || document.querySelector('[id*="result" i], [class*="result" i]');
+        if (!result || getComputedStyle(result).display === 'none') return false;
+        var text = (result.textContent || '').replace(/\s+/g, ' ');
+        if (!/section performance/i.test(text) || !/VARC/i.test(text) || !/DILR/i.test(text) || !/QA/i.test(text)) return false;
+        var scoreMatch = null, scorePattern = /(-?\d+(?:\.\d+)?)\s*\/\s*(\d+)\s*(?:MARKS?|NET SCORE)?/gi, match;
+        while ((match = scorePattern.exec(text))) {
+          if (!scoreMatch || Number(match[2]) > Number(scoreMatch[2])) scoreMatch = match;
+        }
+        if (!scoreMatch || Number(scoreMatch[2]) < 9) return false;
+        var correctMatch = text.match(/(\d+)\s*CORRECT/i), wrongMatch = text.match(/(\d+)\s*WRONG/i);
+        sent = true;
+        send('submitted', {
+          score: Number(scoreMatch[1]), total: Math.round(Number(scoreMatch[2]) / 3),
+          correct: correctMatch ? Number(correctMatch[1]) : 0, wrong: wrongMatch ? Number(wrongMatch[1]) : 0,
+          answers: typeof answers !== 'undefined' ? answers : {}, timeTakenSeconds: 0, fullMock: true
+        });
+        return true;
+      }
       function addLegacyReviewButton() {
         if (typeof QUESTIONS === 'undefined' || !QUESTIONS.length || document.getElementById('achievers-legacy-review')) return;
         var result = document.getElementById('result-screen') || document.querySelector('[id*="result" i], [class*="result" i]');
@@ -74,7 +99,9 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         document.getElementById('achievers-close-review').onclick = function () { modal.remove(); };
       }
       function reportResult() {
-        if (sent || typeof QUESTIONS === 'undefined' || typeof answers === 'undefined') return;
+        // Older full-mock files expose one section through QUESTIONS while
+        // the student is progressing. Wait for their combined result screen.
+        if (sent || isLegacyMultiSectionMock() || typeof QUESTIONS === 'undefined' || typeof answers === 'undefined') return;
         sent = true;
         var correct = 0, wrong = 0, score = 0;
         QUESTIONS.forEach(function (q, index) {
@@ -89,6 +116,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       }
       function reportVisibleResult() {
         if (sent) return;
+        if (reportLegacyFullMockResult()) return;
         var candidates = document.querySelectorAll('[data-score], #score, [id*="score" i], [class*="score" i], [id*="result" i], [class*="result" i]');
         for (var index = 0; index < candidates.length; index++) {
           var candidate = candidates[index];
@@ -254,7 +282,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         installNewMockHooks();
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
-          if (getComputedStyle(result).display !== 'none') { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }
+          if (getComputedStyle(result).display !== 'none') { if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); } }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
         new MutationObserver(function () { reportVisibleResult(); }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
         document.addEventListener('click', function (event) {
@@ -267,7 +295,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             return;
           }
           if (/start|begin|attempt/i.test(label)) send('started');
-          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }, 600);
+          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); } }, 600);
         }, true);
         // The parent also sends this payload by postMessage, but embedding it
         // makes reopening analysis deterministic even if that message arrives
@@ -445,7 +473,13 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           await startWriteRef.current;
           void logActivity(user, "mock", mock.type === "full" ? `Full Mock · ${mock.name}` : `${mock.section || "Sectional"} Mock · ${mock.name}`);
         }
-        if (data.type === "submitted" && attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting") {
+        const submittedTotal = Number(data.total || mock.questions || 0);
+        const isRepairingLegacyFullAttempt =
+          mock.type === "full"
+          && data.fullMock === true
+          && attemptRef.current?.status === "submitted"
+          && attemptRef.current.fullMock !== true;
+        if (data.type === "submitted" && (attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting" || isRepairingLegacyFullAttempt)) {
           let startedWithSubmission = false;
           if (!attemptRef.current) {
             const started: SavedAttempt = { status: "in_progress" };
@@ -463,7 +497,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           setAttempt(submitting);
           if (startWriteRef.current) await startWriteRef.current;
           if (startedWithSubmission) void logActivity(user, "mock", mock.type === "full" ? `Full Mock · ${mock.name}` : `${mock.section || "Sectional"} Mock · ${mock.name}`);
-          const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = Number(data.total || mock.questions || 0);
+          const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = submittedTotal;
           const timeTakenSeconds = typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0));
           // Persist the completed score before calculating ranks. The live
           // sectional list listens to this document, so it updates as soon as
@@ -568,7 +602,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     </div>
   );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
-  const percentile = attempt?.status === "submitted"
+  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true)
     ? (typeof attempt.percentile === "number" && attempt.percentile > 0
         ? attempt.percentile
         : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty, mock?.type))

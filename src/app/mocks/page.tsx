@@ -39,6 +39,7 @@ export default function FullMocksPage() {
           correct: Number(value.correct || 0),
           wrong: Number(value.wrong || 0),
           percentile: typeof value.percentile === "number" ? value.percentile : undefined,
+          fullMock: value.fullMock === true,
           attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now",
         };
       });

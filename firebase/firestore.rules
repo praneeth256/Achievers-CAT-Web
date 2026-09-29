@@ -530,6 +530,29 @@ service cloud.firestore {
           && request.resource.data.mockId == resource.data.mockId
           && resource.data.status == 'in_progress'
           && request.resource.data.status == 'submitted'
+          // Upgrade a legacy section-only full mock when the compatible
+          // result bridge finally supplies its complete score.
+          || (
+            resource.data.userId == request.auth.uid
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.mockId == resource.data.mockId
+            && resource.data.type == 'full'
+            && resource.data.status == 'submitted'
+            && (!resource.data.keys().hasAny(['fullMock']) || resource.data.fullMock != true)
+            && request.resource.data.fullMock == true
+            && request.resource.data.total >= resource.data.total
+          )
+          // Once a complete score is locked, the client may only replace the
+          // provisional percentile after rankings have been calculated.
+          || (
+            resource.data.userId == request.auth.uid
+            && request.resource.data.userId == request.auth.uid
+            && resource.data.type == 'full'
+            && resource.data.status == 'submitted'
+            && resource.data.keys().hasAny(['fullMock'])
+            && resource.data.fullMock == true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['percentile'])
+          )
           || isAdmin()
         );
 
