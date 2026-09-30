@@ -706,7 +706,7 @@ export default function Home() {
             onClick={() => setLeaderboardRefresh((v) => v + 1)}
             aria-label="Refresh rankings"
             aria-busy={leaderboardLoading}
-            className="absolute bottom-[18%] left-[2.4%] flex h-[12.5%] w-[17.5%] min-h-10 min-w-36 items-center justify-center gap-[0.6vw] rounded-full border-2 border-emerald-500 bg-[#edfff5]/80 px-3 font-bold text-emerald-700 shadow-[0_3px_10px_rgba(16,185,129,0.12)] backdrop-blur-[2px] transition hover:scale-[1.025] hover:bg-white hover:shadow-[0_5px_16px_rgba(16,185,129,0.25)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-emerald-500/35"
+            className="absolute left-[2.4%] top-[59.8%] flex h-[10%] w-[17.5%] min-h-10 min-w-36 items-center justify-center gap-[0.6vw] rounded-full border-2 border-emerald-500 bg-[#f4fff8] px-3 font-bold text-emerald-700 shadow-[0_3px_10px_rgba(16,185,129,0.12)] transition hover:scale-[1.025] hover:bg-white hover:shadow-[0_5px_16px_rgba(16,185,129,0.25)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-emerald-500/35"
             style={{ fontSize: "clamp(11px, 1.35vw, 27px)" }}
           >
             <RefreshCw aria-hidden="true" className={leaderboardLoading ? "h-[1em] w-[1em] animate-spin" : "h-[1em] w-[1em]"} strokeWidth={3} />
