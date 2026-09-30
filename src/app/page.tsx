@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -21,7 +22,6 @@ import {
   Trophy,
   Loader2,
   X,
-  RefreshCw,
   BarChart3,
 } from "lucide-react";
 
@@ -139,6 +139,12 @@ const sectionInfo: Record<
     title: "DILR",
     shortTitle: "DILR",
   },
+};
+
+const rankingStyles = {
+  quant: { icon: Target, iconWrap: "bg-rose-100 text-rose-500", score: "text-rose-500", scoreBox: "bg-rose-50", border: "border-rose-100" },
+  varc: { icon: BookOpenText, iconWrap: "bg-violet-100 text-violet-600", score: "text-violet-600", scoreBox: "bg-violet-50", border: "border-violet-100" },
+  dilr: { icon: BarChart3, iconWrap: "bg-emerald-100 text-emerald-600", score: "text-emerald-600", scoreBox: "bg-emerald-50", border: "border-emerald-100" },
 };
 
 function getDisplayName(entry: Pick<LeaderboardEntry, "displayName" | "email">) {
@@ -691,38 +697,28 @@ export default function Home() {
       </section>
 
       {/* ── Live Leaderboards ────────────────────────────── */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-dark">Live Rankings</p>
-            <h2 className="mt-1 font-display text-[24px] font-bold text-foreground">Today&apos;s Top Performers</h2>
-            <p className="mt-1 text-[13px] text-muted">Rankings refresh when the page opens. Refresh for the latest.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setLeaderboardRefresh((v) => v + 1)}
-            disabled={leaderboardLoading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-tint px-3 py-2 text-[12px] font-semibold text-brand-darker disabled:opacity-50 hover:bg-brand/10"
-          >
-            <RefreshCw size={13} className={leaderboardLoading ? "animate-spin" : ""} />
-            Refresh rankings
-          </button>
+      <section className="overflow-hidden bg-[#effdf5] pb-9 pt-0 sm:pb-12">
+        <div className="relative mx-auto max-w-[2058px]">
+          <Image src="/daily-rankings-hero.png" alt="Today's top performers celebrating on a winners podium" width={2058} height={764} sizes="100vw" priority className="block min-h-[245px] w-full object-cover object-center sm:min-h-0" />
+          <button type="button" onClick={() => setLeaderboardRefresh((v) => v + 1)} disabled={leaderboardLoading} aria-label="Refresh rankings" className="absolute bottom-[18%] left-[2.5%] h-[12%] w-[17%] min-h-9 min-w-36 rounded-full disabled:cursor-wait"><span className="sr-only">Refresh rankings</span></button>
         </div>
 
-        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+        <div className="relative z-10 mx-auto -mt-2 grid max-w-[1660px] gap-4 px-4 sm:-mt-6 sm:px-6 lg:-mt-8 lg:grid-cols-3 lg:px-8">
           {(["quant", "varc", "dilr"] as Section[]).map((section) => {
             const leaderboard = leaderboards[section];
+            const style = rankingStyles[section];
+            const SectionIcon = style.icon;
             return (
-              <div key={section} className="glass-card p-5">
+              <article key={section} className="min-h-[360px] rounded-[24px] border border-white/90 bg-white/90 p-4 shadow-[0_12px_30px_rgba(24,116,70,0.08)] backdrop-blur sm:p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Trophy size={17} className="text-brand-dark" />
-                      <h3 className="font-display text-[15px] font-bold">Top 5 / {leaderboard.total} attempters</h3>
+                  <div className="flex items-center gap-3">
+                    <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${style.iconWrap}`}><SectionIcon size={25} strokeWidth={2.4} /></span>
+                    <div>
+                      <h3 className="font-display text-[16px] font-bold text-slate-950">Top 5 / {leaderboard.total} Attempters</h3>
+                      <p className="mt-0.5 text-[13px] font-medium text-slate-500">{sectionInfo[section].title}</p>
                     </div>
-                    <p className="mt-0.5 text-[12px] text-muted">{sectionInfo[section].title}</p>
                   </div>
-                  <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[10.5px] font-bold text-brand-darker">Top scores</span>
+                  <span className={`hidden rounded-full px-3 py-2 text-[12px] font-bold sm:inline-flex ${style.scoreBox} ${style.score}`}>Top scores <ArrowRight className="ml-1.5" size={14} /></span>
                 </div>
 
                 {leaderboardLoading ? (
@@ -735,25 +731,27 @@ export default function Home() {
                     <p className="mt-1 text-[11.5px] text-muted">Be the first to attempt this section.</p>
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-5 space-y-1.5">
                     {leaderboard.entries.map((entry, index) => (
-                      <div key={entry.userId} className="flex items-center gap-3 rounded-xl border border-border/60 bg-white/50 px-3 py-2.5">
-                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${index === 0 ? "bg-brand text-white shadow-sm shadow-brand/30" : "bg-brand-tint text-brand-darker"}`}>
+                      <div key={entry.userId} className={`flex items-center gap-2.5 rounded-2xl border bg-white px-3 py-2.5 ${style.border}`}>
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${index === 0 ? "bg-amber-200 text-amber-950" : index === 1 ? "bg-slate-100 text-slate-600" : index === 2 ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-500"}`}>
                           {index + 1}
                         </div>
+                        {index === 0 && <Trophy size={17} className="-ml-2 shrink-0 text-amber-500" fill="currentColor" />}
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold ${style.iconWrap}`}>{getDisplayName(entry).slice(0, 1).toUpperCase()}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[12.5px] font-semibold text-foreground">{getDisplayName(entry)}</p>
-                          <p className="text-[11px] text-muted">{entry.correct} correct · {entry.wrong} wrong</p>
+                          <p className="truncate text-[13px] font-bold text-slate-900">{getDisplayName(entry)}</p>
+                          <p className="text-[11.5px] text-slate-500">{entry.correct} correct · {entry.wrong} wrong</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-display text-[13px] font-bold text-brand-darker">{formatScore(entry.score)}</p>
-                          <p className="text-[10px] text-muted">marks</p>
+                        <div className={`min-w-12 rounded-xl px-2 py-1 text-center ${style.scoreBox}`}>
+                          <p className={`font-display text-[16px] font-bold ${style.score}`}>{formatScore(entry.score)}</p>
+                          <p className={`text-[10px] font-medium ${style.score}`}>marks</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
