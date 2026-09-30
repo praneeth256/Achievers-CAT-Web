@@ -704,11 +704,13 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setLeaderboardRefresh((v) => v + 1)}
-            disabled={leaderboardLoading}
             aria-label="Refresh rankings"
-            className="absolute bottom-[18%] left-[2.5%] flex h-[12%] w-[17%] min-h-9 min-w-36 items-center justify-center rounded-full hover:bg-emerald-500/5 focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-wait"
+            aria-busy={leaderboardLoading}
+            className="absolute bottom-[18%] left-[2.4%] flex h-[12.5%] w-[17.5%] min-h-10 min-w-36 items-center justify-center gap-[0.6vw] rounded-full border-2 border-emerald-500 bg-[#edfff5]/80 px-3 font-bold text-emerald-700 shadow-[0_3px_10px_rgba(16,185,129,0.12)] backdrop-blur-[2px] transition hover:scale-[1.025] hover:bg-white hover:shadow-[0_5px_16px_rgba(16,185,129,0.25)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-emerald-500/35"
+            style={{ fontSize: "clamp(11px, 1.35vw, 27px)" }}
           >
-            {leaderboardLoading ? <RefreshCw aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-700" /> : <span className="sr-only">Refresh rankings</span>}
+            <RefreshCw aria-hidden="true" className={leaderboardLoading ? "h-[1em] w-[1em] animate-spin" : "h-[1em] w-[1em]"} strokeWidth={3} />
+            <span>Refresh rankings</span>
           </button>
         </div>
 
