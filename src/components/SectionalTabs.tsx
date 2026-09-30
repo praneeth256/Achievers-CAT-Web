@@ -68,20 +68,65 @@ export default function SectionalTabs() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-display text-[28px] font-bold text-foreground">Sectional Mocks</h1>
-      <p className="mt-2 text-[14.5px] text-muted">Focused practice for VARC, DILR and QA. Scores update here live after submission; completed mocks reopen in analysis mode.</p>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
 
-      <div className="mt-6 flex gap-2 overflow-x-auto rounded-full border border-border bg-surface-muted p-1">
-        {sections.map((s) => (
-          <button key={s} onClick={() => router.replace(`/sectional?section=${s}`)} className={`flex-1 whitespace-nowrap rounded-full px-4 py-2 text-[13.5px] font-semibold transition ${active === s ? "bg-white text-brand-darker shadow-sm" : "text-muted hover:text-foreground"}`}>
-            {s}
-          </button>
-        ))}
-      </div>
+        {/* Page header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              <Loader2 size={18} className="hidden" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </span>
+            <h1 className="font-display text-[24px] font-bold text-foreground">Sectional Mocks</h1>
+          </div>
+          <p className="mt-1 text-[13.5px] text-muted ml-12">
+            Improve accuracy and speed with section-wise mocks.
+          </p>
+        </div>
 
-      <div className="mt-6 flex flex-col gap-3">
-        {loading ? <div className="flex justify-center py-16"><Loader2 className="animate-spin text-brand" /></div> : data[active].length ? data[active].map((mock) => <MockCard key={mock.id} mock={{ ...mock, attempted: attempts[mock.id] }} />) : <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted">No {active} sectional mocks have been published yet.</div>}
+        {/* Top banner */}
+        <div className="glass-card-green mb-5 p-4 flex items-center justify-between">
+          <p className="text-[13px] font-medium text-brand-darker">
+            🎯 Build your streak. Aim for 99.5+%ile.
+          </p>
+          <span className="text-[12px] text-muted hidden sm:block">Scores auto-save after submission</span>
+        </div>
+
+        {/* Section tabs */}
+        <div className="mb-5 flex gap-2">
+          {sections.map((s) => (
+            <button
+              key={s}
+              onClick={() => router.replace(`/sectional?section=${s}`)}
+              className={`rounded-full px-5 py-2 text-[13.5px] font-semibold transition ${
+                active === s
+                  ? "bg-brand text-white shadow-md shadow-brand/25"
+                  : "border border-border bg-white text-muted hover:border-brand hover:text-brand-darker"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {/* Mock list */}
+        <div className="flex flex-col gap-3">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="animate-spin text-brand" size={24} />
+            </div>
+          ) : data[active].length ? (
+            data[active].map((mock) => (
+              <MockCard key={mock.id} mock={{ ...mock, attempted: attempts[mock.id] }} />
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+              <p className="text-[14px] font-semibold text-foreground">No {active} sectional mocks yet</p>
+              <p className="mt-1 text-[13px] text-muted">Mocks are added regularly — check back soon.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

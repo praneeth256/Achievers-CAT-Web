@@ -652,11 +652,6 @@ function MockViewShell({
       {/* Top bar */}
       <div className="flex items-center justify-between border-b border-border bg-white px-4 py-2">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          {percentile !== null && (
-            <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-bold text-brand-darker">
-              Score {score} · {percentile.toFixed(2)} %ile
-            </span>
-          )}
           {user.photoURL
             ? <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full object-cover" />
             : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint text-brand-darker"><UserRound size={16} /></span>}

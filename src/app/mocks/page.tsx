@@ -5,7 +5,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { collection, getDocs, onSnapshot, orderBy, query, where, limit } from "firebase/firestore";
 import MockCard, { MockSummary, TopScorer } from "@/components/MockCard";
 import { auth, db } from "@/lib/firebase/client";
-import { Loader2 } from "lucide-react";
+import { BarChart3, Clock, Loader2, Trophy } from "lucide-react";
 
 export default function FullMocksPage() {
   const [mocks, setMocks] = useState<MockSummary[]>([]);
@@ -16,9 +16,6 @@ export default function FullMocksPage() {
 
   useEffect(() => onAuthStateChanged(auth, (nextUser) => { setUser(nextUser); if (!nextUser) setAttempts({}); }), []);
 
-  // Listen for submitted full-mock attempts for this user.
-  // Keep only the FIRST submitted record per mock (earliest submittedAt) so
-  // a re-visit that records a zero never overwrites the real score.
   useEffect(() => {
     if (!user) return;
     return onSnapshot(query(collection(db, "attempts"), where("userId", "==", user.uid)), (snapshot) => {
@@ -30,7 +27,6 @@ export default function FullMocksPage() {
         const submittedAt = value.submittedAt?.toDate?.();
         const mockId = String(value.mockId);
         const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
-        // Keep the first (earliest) completed attempt per mock
         if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
         firstSubmittedAt[mockId] = attemptedAt;
         next[mockId] = {
@@ -47,59 +43,71 @@ export default function FullMocksPage() {
     });
   }, [user]);
 
-  // Fetch published full mocks
   useEffect(() => {
     getDocs(query(collection(db, "mocks"), where("type", "==", "full"), where("status", "==", "published")))
       .then(async (snap) => {
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockSummary));
         rows.sort((a, b) => a.name.localeCompare(b.name));
         setMocks(rows);
-
-        // Fetch top-5 scorers for each mock from mock_rankings
         const scorerMap: Record<string, TopScorer[]> = {};
-        await Promise.all(
-          rows.map(async (mock) => {
-            const rankSnap = await getDocs(
-              query(
-                collection(db, "mock_rankings"),
-                where("mockId", "==", mock.id),
-                orderBy("score", "desc"),
-                limit(5)
-              )
-            );
-            scorerMap[mock.id] = rankSnap.docs.map((d) => {
-              const data = d.data();
-              return {
-                userId: String(data.userId || d.id),
-                displayName: String(data.displayName || "Student"),
-                score: Number(data.score || 0),
-              };
-            });
-          })
-        );
+        await Promise.all(rows.map(async (mock) => {
+          const rankSnap = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mock.id), orderBy("score", "desc"), limit(5)));
+          scorerMap[mock.id] = rankSnap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || "Student"), score: Number(d.data().score || 0) }));
+        }));
         setTopScorers(scorerMap);
       })
       .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-display text-[28px] font-bold text-foreground">Full Mocks</h1>
-      <p className="mt-2 text-[14.5px] text-muted">Click any mock name or Open Mock — it opens the uploaded HTML mock in a new tab. Completed mocks reopen in analysis mode.</p>
-      <div className="mt-6 flex flex-col gap-3">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+
+        {/* Page header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-tint text-brand-darker">
+              <BarChart3 size={18} />
+            </span>
+            <h1 className="font-display text-[24px] font-bold text-foreground">Full Mocks</h1>
+          </div>
+          <p className="mt-1 text-[13.5px] text-muted ml-12">
+            Improve accuracy and speed with full-length CAT mocks.
+          </p>
+        </div>
+
+        {/* Stats banner */}
+        <div className="glass-card-green mb-6 flex items-center gap-6 p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-[13.5px]">
+            <Trophy size={16} className="text-brand-darker" />
+            <span className="font-semibold text-foreground">Complete a mock and see your percentile instantly</span>
+          </div>
+          <div className="ml-auto hidden sm:flex items-center gap-1 text-[12px] text-muted">
+            <Clock size={13} />
+            120 mins · VARC · DILR · QA
+          </div>
+        </div>
+
+        {/* Mock list */}
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="animate-spin text-brand" /></div>
-        ) : mocks.length ? mocks.map((mock) => (
-          <MockCard
-            key={mock.id}
-            mock={{
-              ...mock,
-              attempted: attempts[mock.id],
-              topScorers: topScorers[mock.id],
-            }}
-          />
-        )) : (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted">No full mocks have been published yet.</div>
+          <div className="flex justify-center py-16">
+            <Loader2 className="animate-spin text-brand" size={24} />
+          </div>
+        ) : mocks.length ? (
+          <div className="flex flex-col gap-4">
+            {mocks.map((mock) => (
+              <MockCard
+                key={mock.id}
+                mock={{ ...mock, attempted: attempts[mock.id], topScorers: topScorers[mock.id] }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+            <BarChart3 size={32} className="mx-auto mb-3 text-muted" />
+            <p className="text-[14px] font-semibold text-foreground">No full mocks published yet</p>
+            <p className="mt-1 text-[13px] text-muted">Check back soon — mocks are added regularly.</p>
+          </div>
         )}
       </div>
     </div>
