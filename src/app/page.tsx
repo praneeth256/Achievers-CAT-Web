@@ -22,6 +22,7 @@ import {
   Trophy,
   Loader2,
   X,
+  RefreshCw,
   BarChart3,
 } from "lucide-react";
 
@@ -700,7 +701,15 @@ export default function Home() {
       <section className="overflow-hidden bg-[#effdf5] pb-9 pt-0 sm:pb-12">
         <div className="relative mx-auto max-w-[2058px]">
           <Image src="/daily-rankings-hero.png" alt="Today's top performers celebrating on a winners podium" width={2058} height={764} sizes="100vw" priority className="block min-h-[245px] w-full object-cover object-center sm:min-h-0" />
-          <button type="button" onClick={() => setLeaderboardRefresh((v) => v + 1)} disabled={leaderboardLoading} aria-label="Refresh rankings" className="absolute bottom-[18%] left-[2.5%] h-[12%] w-[17%] min-h-9 min-w-36 rounded-full disabled:cursor-wait"><span className="sr-only">Refresh rankings</span></button>
+          <button
+            type="button"
+            onClick={() => setLeaderboardRefresh((v) => v + 1)}
+            disabled={leaderboardLoading}
+            aria-label="Refresh rankings"
+            className="absolute bottom-[18%] left-[2.5%] flex h-[12%] w-[17%] min-h-9 min-w-36 items-center justify-center rounded-full hover:bg-emerald-500/5 focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-wait"
+          >
+            {leaderboardLoading ? <RefreshCw aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-700" /> : <span className="sr-only">Refresh rankings</span>}
+          </button>
         </div>
 
         <div className="relative z-10 mx-auto -mt-2 grid max-w-[1660px] gap-4 px-4 sm:-mt-6 sm:px-6 lg:-mt-8 lg:grid-cols-3 lg:px-8">
