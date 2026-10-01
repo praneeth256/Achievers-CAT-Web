@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+
 import Link from "next/link";
 import {
   ArrowLeft, CheckCircle2, Circle, Loader2, Save, BookOpen, ChevronRight,
@@ -40,7 +41,7 @@ function chapterVideos(section: string, module_: string, chapter: string): Video
 }
 
 /* ─── main component ─────────────────────────────────────────── */
-export default function WatchPage() {
+function WatchContent() {
   const params = useSearchParams();
   const router = useRouter();
   const videoId = params.get("v") ?? "";
@@ -348,5 +349,37 @@ export default function WatchPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Suspense wrapper required by Next.js App Router ── */
+function WatchSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-4 h-4 w-40 animate-pulse rounded bg-border" />
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div>
+            <div className="aspect-video w-full animate-pulse rounded-2xl bg-surface-muted" />
+            <div className="mt-4 h-6 w-3/4 animate-pulse rounded bg-border" />
+            <div className="mt-2 h-4 w-1/3 animate-pulse rounded bg-border" />
+          </div>
+          <div className="rounded-2xl border border-border bg-white p-5">
+            <div className="h-4 w-24 animate-pulse rounded bg-border mb-4" />
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="mb-3 h-10 animate-pulse rounded-xl bg-surface-muted" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function WatchPage() {
+  return (
+    <Suspense fallback={<WatchSkeleton />}>
+      <WatchContent />
+    </Suspense>
   );
 }
