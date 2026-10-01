@@ -402,76 +402,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Live Rankings */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-[17px] font-bold text-foreground flex items-center gap-2">
-                🏆 Live Rankings
-              </h2>
-              <button
-                type="button"
-                onClick={() => setLeaderboardRefresh((v) => v + 1)}
-                className="flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-darker hover:underline"
-              >
-                <RefreshCw size={13} className={leaderboardLoading ? "animate-spin" : ""} />
-                Refresh
-              </button>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {(["quant", "varc", "dilr"] as Section[]).map((section) => {
-                const lb = leaderboards[section];
-                const style = rankingStyles[section];
-                const SectionIcon = style.icon;
-                return (
-                  <div key={section} className="edu-card p-4">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.iconWrap}`}>
-                        <SectionIcon size={20} strokeWidth={2.4} />
-                      </span>
-                      <div>
-                        <p className="font-bold text-[14px] text-foreground">Top 5</p>
-                        <p className="text-[11.5px] text-muted">{sectionInfo[section].title}</p>
-                      </div>
-                      <span className={`ml-auto text-[11px] font-semibold ${style.score}`}>{lb.total} attempters</span>
-                    </div>
-                    {leaderboardLoading ? (
-                      <div className="flex justify-center py-6"><Loader2 size={18} className="animate-spin text-brand" /></div>
-                    ) : lb.entries.length === 0 ? (
-                      <p className="py-4 text-center text-[12.5px] text-muted">No attempts yet</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {lb.entries.map((entry, i) => (
-                          <div key={entry.userId} className={`flex items-center gap-2 rounded-xl border ${style.border} px-3 py-2`}>
-                            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-700"}`}>{i + 1}</div>
-                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${style.iconWrap}`}>{getDisplayName(entry).slice(0, 1).toUpperCase()}</span>
-                            <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-foreground">{getDisplayName(entry)}</p>
-                            <span className={`text-[13px] font-bold ${style.score}`}>{formatScore(entry.score)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Motivation Banner */}
-          <div className="mt-6 mb-4 motivation-banner fade-up-delay-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-4xl">🎯</span>
-                <div>
-                  <p className="font-display text-[20px] font-black text-white">Stay consistent. Achieve 99.5+%ile.</p>
-                  <p className="text-[13px] text-white/80 mt-1">Practice. Analyze. Improve. Repeat.</p>
-                </div>
-              </div>
-              <Link href="/mocks" className="inline-flex items-center gap-2 bg-white text-brand-darker font-bold text-[13.5px] px-5 py-2.5 rounded-full hover:bg-brand-tint transition shrink-0">
-                Explore Full Mocks <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-
           {/* CTA for logged-out */}
           {!user && (
             <div className="mt-6 glass-card-green p-6 sm:p-8 fade-up-delay-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
@@ -487,7 +417,7 @@ export default function Home() {
         </div>
 
         {/* ── RIGHT COLUMN ───────────────────────────────── */}
-        <div className="hidden lg:block space-y-4 mt-0">
+        <div className="hidden lg:block space-y-4 mt-0" style={{alignSelf:'start'}}>
 
           {/* CAT Countdown */}
           <div className="countdown-card">
@@ -601,6 +531,80 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── FULL-WIDTH SECTIONS (below 2-column grid) ──────────────── */}
+      <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+
+        {/* Live Rankings */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-[17px] font-bold text-foreground flex items-center gap-2">
+              🏆 Live Rankings
+            </h2>
+            <button
+              type="button"
+              onClick={() => setLeaderboardRefresh((v) => v + 1)}
+              className="flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-darker hover:underline"
+            >
+              <RefreshCw size={13} className={leaderboardLoading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(["quant", "varc", "dilr"] as Section[]).map((section) => {
+              const lb = leaderboards[section];
+              const style = rankingStyles[section];
+              const SectionIcon = style.icon;
+              return (
+                <div key={section} className="edu-card p-4">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.iconWrap}`}>
+                      <SectionIcon size={20} strokeWidth={2.4} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-[14px] text-foreground">Top 5</p>
+                      <p className="text-[11.5px] text-muted">{sectionInfo[section].title}</p>
+                    </div>
+                    <span className={`ml-auto shrink-0 text-[11px] font-semibold ${style.score}`}>{lb.total} attempters</span>
+                  </div>
+                  {leaderboardLoading ? (
+                    <div className="flex justify-center py-6"><Loader2 size={18} className="animate-spin text-brand" /></div>
+                  ) : lb.entries.length === 0 ? (
+                    <p className="py-4 text-center text-[12.5px] text-muted">No attempts yet today</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {lb.entries.map((entry, i) => (
+                        <div key={entry.userId} className={`flex items-center gap-3 rounded-xl border ${style.border} px-3 py-2.5`}>
+                          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-700"}`}>{i + 1}</div>
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${style.iconWrap}`}>{getDisplayName(entry).slice(0, 1).toUpperCase()}</span>
+                          <p className="min-w-0 flex-1 text-[13px] font-semibold text-foreground truncate">{getDisplayName(entry)}</p>
+                          <span className={`shrink-0 text-[13px] font-bold ${style.score}`}>{formatScore(entry.score)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Motivation Banner */}
+        <div className="mt-6 mb-4 motivation-banner fade-up-delay-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-4xl">🎯</span>
+              <div>
+                <p className="font-display text-[20px] font-black text-white">Stay consistent. Achieve 99.5+%ile.</p>
+                <p className="text-[13px] text-white/80 mt-1">Practice. Analyze. Improve. Repeat.</p>
+              </div>
+            </div>
+            <Link href="/mocks" className="inline-flex items-center gap-2 bg-white text-brand-darker font-bold text-[13.5px] px-5 py-2.5 rounded-full hover:bg-brand-tint transition shrink-0">
+              Explore Full Mocks <ArrowRight size={14} />
+            </Link>
           </div>
         </div>
       </div>
