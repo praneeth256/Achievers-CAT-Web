@@ -695,5 +695,40 @@ service cloud.firestore {
       allow read, write: if signedIn()
         && docId.matches(request.auth.uid + '_.*');
     }
+
+
+    // --------------------------------------------------
+    // VIDEO PROGRESS  (watch page checkmarks)
+    // --------------------------------------------------
+
+    // Doc ID: {uid}_{youtubeVideoId}  e.g. "abc123_VT9-jeEmlJ8"
+    // Students can only read/write their own progress docs.
+    match /video_progress/{docId} {
+      allow read: if signedIn()
+        && (docId.matches(request.auth.uid + '_.*') || isAdmin());
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && docId.matches(request.auth.uid + '_.*')
+        && request.resource.data.videoId is string
+        && request.resource.data.completed is bool;
+      allow delete: if isAdmin();
+    }
+
+
+    // --------------------------------------------------
+    // VIDEO NOTES  (watch page note-taking)
+    // --------------------------------------------------
+
+    // Doc ID: {uid}_{youtubeVideoId}
+    // Private per student — only the owner can read or write.
+    match /video_notes/{docId} {
+      allow read: if signedIn()
+        && (docId.matches(request.auth.uid + '_.*') || isAdmin());
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && docId.matches(request.auth.uid + '_.*')
+        && request.resource.data.text is string;
+      allow delete: if isAdmin();
+    }
   }
 }
