@@ -106,7 +106,7 @@ export default function LearnPage() {
         {/* Tip */}
         <div className="mt-8 rounded-2xl border border-brand/15 bg-brand-tint/50 p-4">
           <p className="text-[13px] text-brand-darker font-medium">
-            💡 <strong>How it works:</strong> Each chapter lists videos in sequence order — watch them in order for best results. Click any video to open it on YouTube.
+            💡 <strong>How it works:</strong> Each chapter lists videos in sequence order — watch them in order for best results. Click any video to play it here.
           </p>
         </div>
       </div>

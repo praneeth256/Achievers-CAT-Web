@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, ExternalLink, Play, PlayCircle, Search, Video } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, Play, PlayCircle, Search, Video } from "lucide-react";
 import videoData from "@/lib/videoData";
 import type { Video as VideoType } from "@/lib/videoData";
 
@@ -36,10 +36,8 @@ function ytThumb(videoId: string | null) {
 function VideoCard({ video, index }: { video: VideoType; index: number }) {
   const thumb = ytThumb(video.videoId);
   return (
-    <a
-      href={video.url}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      href={video.videoId ? `/learn/watch?v=${video.videoId}` : "/learn/dilr"}
       className="group flex gap-3 rounded-xl border border-border bg-white p-3 transition hover:border-brand/40 hover:shadow-md hover:shadow-brand/10"
     >
       <div className="relative h-16 w-[112px] shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-brand-darker to-brand-dark">
@@ -68,8 +66,8 @@ function VideoCard({ video, index }: { video: VideoType; index: number }) {
           {video.seq && <span className="rounded-full bg-brand-tint/70 px-2 py-0.5 text-[10px] font-semibold text-brand-darker">{video.seq}</span>}
         </div>
       </div>
-      <ExternalLink size={13} className="mt-1 shrink-0 text-muted opacity-0 transition group-hover:opacity-100" />
-    </a>
+      <Play size={13} className="mt-1 shrink-0 text-muted opacity-0 transition group-hover:opacity-100" fill="currentColor" />
+    </Link>
   );
 }
 

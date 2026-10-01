@@ -29,14 +29,13 @@ function VideoCard({
   done: boolean;
 }) {
   const thumb = ytThumb(video.videoId);
-  const href = video.videoId ? `/learn/watch?v=${video.videoId}` : video.url;
-  const isExternal = !video.videoId;
+  // Keep every Learn lesson in the in-site player. The fallback stays internal
+  // too, rather than sending a learner to a new YouTube tab.
+  const href = video.videoId ? `/learn/watch?v=${video.videoId}` : "/learn";
 
   return (
     <Link
       href={href}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noreferrer" : undefined}
       className={`group flex gap-3 rounded-xl border p-3 transition hover:shadow-md hover:shadow-brand/10 ${
         done
           ? "border-brand/30 bg-brand-tint/40"
