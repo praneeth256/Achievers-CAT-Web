@@ -25,6 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/auth");
   const showBackButton =
     pathname !== "/" &&
+    !pathname.startsWith("/learn") &&
     !pathname.startsWith("/daily") &&
     !pathname.startsWith("/mocks") &&
     !pathname.startsWith("/mock-view/");

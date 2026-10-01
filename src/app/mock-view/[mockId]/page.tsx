@@ -461,6 +461,13 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
         router.push(`/sectional?section=${mock.section || "VARC"}`);
         return;
       }
+      // Full mocks submit each section internally before their final combined
+      // result. Never persist or rank one of those partial section scores.
+      // The bridge emits the aggregated score with fullMock: true only after
+      // all sections have been completed.
+      if (data.type === "submitted" && mock.type === "full" && data.fullMock !== true) {
+        return;
+      }
       const attemptDocument = doc(db, "attempts", `${user.uid}_${mockId}`);
       try {
         if (data.type === "started" && !attemptRef.current) {
@@ -516,7 +523,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           rankings.push({ userId: user.uid, score, correct, wrong });
           const percentile = calculatePercentiles(rankings, total, mock.difficulty, mock.type).get(user.uid) || 0;
           await Promise.all([
-            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score, correct, wrong, updatedAt: serverTimestamp() }),
+            setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score, correct, wrong, fullMock: mock.type === "full", updatedAt: serverTimestamp() }),
             setDoc(attemptDocument, { percentile }, { merge: true }),
           ]);
           const submitted: SavedAttempt = { ...savedScore, percentile };
@@ -602,7 +609,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     </div>
   );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
-  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true || Number(attempt.total || 0) >= Number(mock?.questions || 0))
+  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true)
     ? (typeof attempt.percentile === "number" && attempt.percentile > 0
         ? attempt.percentile
         : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty, mock?.type))

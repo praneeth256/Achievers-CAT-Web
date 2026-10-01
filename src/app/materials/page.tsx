@@ -15,7 +15,7 @@ type FilterSection = (typeof ALL_SECTIONS)[number];
 const sectionColors: Record<string, { icon: string; iconBg: string; dl: string }> = {
   VARC:  { icon: "bg-purple-50 text-purple-600", iconBg: "bg-purple-50", dl: "bg-purple-600 hover:bg-purple-700" },
   DILR:  { icon: "bg-emerald-50 text-emerald-600", iconBg: "bg-emerald-50", dl: "bg-emerald-600 hover:bg-emerald-700" },
-  QA:    { icon: "bg-blue-50 text-blue-600", iconBg: "bg-blue-50", dl: "bg-blue-600 hover:bg-blue-700" },
+  QA:    { icon: "bg-yellow-50 text-yellow-600", iconBg: "bg-yellow-50", dl: "bg-yellow-500 hover:bg-yellow-600" },
   default: { icon: "bg-brand-tint text-brand-darker", iconBg: "bg-brand-tint", dl: "bg-brand hover:bg-brand-dark" },
 };
 
