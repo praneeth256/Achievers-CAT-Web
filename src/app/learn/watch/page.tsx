@@ -43,7 +43,6 @@ function chapterVideos(section: string, module_: string, chapter: string): Video
 /* ─── main component ─────────────────────────────────────────── */
 function WatchContent() {
   const params = useSearchParams();
-  const router = useRouter();
   const videoId = params.get("v") ?? "";
   const meta = videoId ? videoLookup[videoId] : null;
 
