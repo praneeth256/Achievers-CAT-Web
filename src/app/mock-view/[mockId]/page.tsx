@@ -18,7 +18,7 @@ type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "su
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const restorePayload = savedAttempt?.status === "submitted"
-    ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0, fullMock: savedAttempt.fullMock === true }).replace(/<\//g, "<\\/")
+    ? JSON.stringify({ answers: savedAttempt.answers || {}, score: savedAttempt.score || 0, percentile: savedAttempt.percentile, timeTakenSeconds: savedAttempt.timeTakenSeconds || 0, fullMock: savedAttempt.fullMock === true }).replace(/<\//g, "<\\/")
     : "null";
   // Keep the regular-expression escapes intact in the script injected into
   // the uploaded HTML. A normal template literal consumes escapes such as
@@ -27,6 +27,21 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
     (function () {
       var sent = false;
       function send(type, extra) { window.parent.postMessage(Object.assign({ source: 'achievers-mock', type: type }, extra || {}), '*'); }
+      function showPercentile(percentile) {
+        var value = Number(percentile);
+        if (!isFinite(value)) return;
+        var title = document.querySelector('#result-screen h1, #result-screen h2, .result-screen h1, .result-screen h2, h1, h2');
+        if (!title) return;
+        var badge = document.getElementById('achievers-percentile-badge');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.id = 'achievers-percentile-badge';
+          badge.style.cssText = 'display:inline-flex;align-items:center;margin-left:12px;vertical-align:middle;border-radius:999px;background:#e8f8ee;color:#08783f;padding:5px 10px;font:700 14px Arial,sans-serif;white-space:nowrap;';
+          title.style.display = 'inline-block';
+          title.insertAdjacentElement('afterend', badge);
+        }
+        badge.textContent = value.toFixed(2) + '%ile';
+      }
       function isLegacyMultiSectionMock() {
         if (typeof TEST_META !== 'undefined') return false;
         var text = (document.body && document.body.textContent || '').toUpperCase();
@@ -338,7 +353,11 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         if (window.__achieversRestorePayload) {
           setTimeout(function () {
             window.__achieversAnalysis = true;
-            if (!restoreNewMockResult(window.__achieversRestorePayload) && typeof showResults === 'function') {
+            var restored = restoreNewMockResult(window.__achieversRestorePayload);
+            // Result renderers frequently replace their heading markup, so
+            // attach after the restored screen has finished rendering.
+            setTimeout(function () { showPercentile(window.__achieversRestorePayload.percentile); }, 0);
+            if (!restored && typeof showResults === 'function') {
               answers = window.__achieversRestorePayload.answers || {};
               submitted = true;
               showResults();
@@ -350,9 +369,16 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       window.addEventListener('message', function (event) {
         var data = event.data || {};
         if (data.source !== 'achievers-platform') return;
+        if (data.type === 'percentile') {
+          showPercentile(data.percentile);
+          return;
+        }
         if (data.type === 'restore' && data.answers) {
           window.__achieversAnalysis = true;
-          if (restoreNewMockResult(data)) return;
+          if (restoreNewMockResult(data)) {
+            setTimeout(function () { showPercentile(data.percentile); }, 0);
+            return;
+          }
           if (typeof showResults === 'function') {
             answers = data.answers;
             submitted = true;
@@ -360,6 +386,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             hideIntroForAnalysis();
             showResults();
           }
+          setTimeout(function () { showPercentile(data.percentile); }, 0);
         }
       });
     })();
@@ -588,6 +615,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           const submitted: SavedAttempt = { ...savedScore, percentile };
           attemptRef.current = submitted;
           setAttempt(submitted);
+          frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "percentile", percentile }, "*");
         }
       } catch (error) {
         // If saving failed, return to the protected in-progress state. This
@@ -640,7 +668,15 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
 
   function restoreAnalysis() {
     const savedAttempt = attemptRef.current;
-    if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, timeTakenSeconds: savedAttempt.timeTakenSeconds, fullMock: savedAttempt.fullMock === true }, "*");
+    const currentMock = mockRef.current;
+    const percentile = savedAttempt?.status === "submitted"
+      ? typeof savedAttempt.percentile === "number"
+        ? savedAttempt.percentile
+        : currentMock
+          ? estimatePercentile(Number(savedAttempt.score || 0), Number(savedAttempt.total || currentMock.questions || 0), currentMock.difficulty, currentMock.type)
+          : undefined
+      : undefined;
+    if (savedAttempt?.status === "submitted") frameRef.current?.contentWindow?.postMessage({ source: "achievers-platform", type: "restore", answers: savedAttempt.answers || {}, score: savedAttempt.score, percentile, timeTakenSeconds: savedAttempt.timeTakenSeconds, fullMock: savedAttempt.fullMock === true }, "*");
   }
 
   if (authLoading) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Restoring your session…</div>;
