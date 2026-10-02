@@ -44,6 +44,10 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         }
         if (!scoreMatch || Number(scoreMatch[2]) < 9) return false;
         var correctMatch = text.match(/(\d+)\s*CORRECT/i), wrongMatch = text.match(/(\d+)\s*WRONG/i);
+        // Legacy full mocks reach this combined-result path directly, rather
+        // than reportResult(). Add the same in-site question review control
+        // before marking the result as reported.
+        addLegacyReviewButton();
         sent = true;
         send('submitted', {
           score: Number(scoreMatch[1]), total: Math.round(Number(scoreMatch[2]) / 3),
