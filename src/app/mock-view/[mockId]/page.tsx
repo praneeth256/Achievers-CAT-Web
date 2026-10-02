@@ -14,7 +14,7 @@ type Mock = { id: string; name: string; type: "full" | "sectional"; section?: st
 // "submitting" exists only in the running page.  It prevents an unload from
 // turning a completed test into a zero while its Firestore writes finish.
 type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number; fullMock?: boolean };
-type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean };
+type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean; repair?: boolean };
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const restorePayload = savedAttempt?.status === "submitted"
@@ -131,10 +131,18 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           else { wrong++; if (q.q_type === 'MCQ') score -= 1; }
         });
         addLegacyReviewButton();
-        send('submitted', { score: score, total: QUESTIONS.length, correct: correct, wrong: wrong, answers: answers, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0 });
+        send('submitted', { score: score, total: QUESTIONS.length, correct: correct, wrong: wrong, answers: answers, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0, repair: window.__achieversAnalysis === true });
       }
       function reportVisibleResult() {
         if (sent) return;
+        // Reopened analyses have saved answers, which let the dedicated
+        // reporters calculate the exact score. Do not replace it with a
+        // value scraped from a partially rendered result screen.
+        if (window.__achieversAnalysis === true) return;
+        // CAT-style templates expose exact scores through their result
+        // functions. Their DOM renders in stages, so scraping it here could
+        // capture a partial value before final net marks are shown.
+        if (typeof TEST_META !== 'undefined') return;
         if (reportLegacyFullMockResult()) return;
         var candidates = document.querySelectorAll('[data-score], #score, [id*="score" i], [class*="score" i], [id*="result" i], [class*="result" i]');
         for (var index = 0; index < candidates.length; index++) {
@@ -152,7 +160,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       function reportNewMockResult(savedResult) {
         // A full mock saves each section internally. Those are progress
         // checkpoints, not completed platform attempts.
-        if (sent || (typeof fullMockActive !== 'undefined' && fullMockActive) || typeof TEST_META === 'undefined' || (!savedResult && typeof loadAllResults !== 'function')) return;
+        if (sent || window.__achieversAnalysis === true || (typeof fullMockActive !== 'undefined' && fullMockActive) || typeof TEST_META === 'undefined' || (!savedResult && typeof loadAllResults !== 'function')) return;
         var testId = typeof currentTestId !== 'undefined' && currentTestId ? currentTestId : (TEST_META[0] && TEST_META[0].id);
         // Sandboxed srcDoc files cannot always access localStorage. The new
         // mock hands the complete result to saveResult(), so prefer that
@@ -186,7 +194,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         sent = true;
         send('submitted', {
           score: score, total: questions.length, correct: correct, wrong: wrong, answers: answers,
-          timeTakenSeconds: typeof timerStartedAt === 'number' && timerStartedAt ? Math.max(0, Math.floor((Date.now() - timerStartedAt) / 1000)) : 0
+          timeTakenSeconds: typeof timerStartedAt === 'number' && timerStartedAt ? Math.max(0, Math.floor((Date.now() - timerStartedAt) / 1000)) : 0,
+          repair: window.__achieversAnalysis === true
         });
       }
       function restoreNewMockResult(data) {
@@ -223,7 +232,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         answers = restoredAnswers;
         if (typeof clearInterval === 'function' && typeof timerInt !== 'undefined') clearInterval(timerInt);
         renderResultScreen(testId, {
-          marks: typeof data.score === 'number' ? data.score : (correct * 3 - wrongMCQ), correct: correct, wrong: wrong,
+          marks: correct * 3 - wrongMCQ, correct: correct, wrong: wrong,
           wrongMCQ: wrongMCQ, wrongTITA: wrongTITA, skip: skip, mm: 0, ss: 0,
           timeUsedSec: Number(data.timeTakenSeconds || 0), questionTimeSec: {}
         });
@@ -325,8 +334,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         // before the uploaded mock has registered its listener.
         if (window.__achieversRestorePayload) {
           setTimeout(function () {
+            window.__achieversAnalysis = true;
             if (!restoreNewMockResult(window.__achieversRestorePayload) && typeof showResults === 'function') {
-              window.__achieversAnalysis = true;
               answers = window.__achieversRestorePayload.answers || {};
               submitted = true;
               showResults();
@@ -509,7 +518,18 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           && data.fullMock === true
           && attemptRef.current?.status === "submitted"
           && attemptRef.current.fullMock !== true;
-        if (data.type === "submitted" && (attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting" || isRepairingLegacyFullAttempt)) {
+        // Older sectional result pages could send a number from an interim
+        // render. When analysis is reopened the bridge recalculates from the
+        // saved answers and marks this as a narrowly scoped repair.
+        const isRepairingExistingSectionalAttempt =
+          mock.type === "sectional"
+          && data.repair === true
+          && attemptRef.current?.status === "submitted";
+        if (data.type === "submitted" && (
+          (attemptRef.current?.status !== "submitted" && attemptRef.current?.status !== "submitting")
+          || isRepairingLegacyFullAttempt
+          || isRepairingExistingSectionalAttempt
+        )) {
           let startedWithSubmission = false;
           if (!attemptRef.current) {
             const started: SavedAttempt = { status: "in_progress" };
@@ -528,18 +548,31 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           if (startWriteRef.current) await startWriteRef.current;
           if (startedWithSubmission) void logActivity(user, "mock", mock.type === "full" ? `Full Mock · ${mock.name}` : `${mock.section || "Sectional"} Mock · ${mock.name}`);
           const score = Number(data.score || 0), correct = Number(data.correct || 0), wrong = Number(data.wrong || 0), total = submittedTotal;
-          const timeTakenSeconds = typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0));
+          const timeTakenSeconds = isRepairingExistingSectionalAttempt
+            ? Number(attemptRef.current?.timeTakenSeconds || 0)
+            : typeof data.timeTakenSeconds === "number" ? Math.max(0, data.timeTakenSeconds) : Math.max(0, mock.durationMins * 60 - Number(data.secondsLeft || 0));
           // Persist the completed score before calculating ranks. The live
           // sectional list listens to this document, so it updates as soon as
           // the result is available instead of waiting on every rank record.
           const provisionalPercentile = estimatePercentile(score, total, mock.difficulty, mock.type);
-          const savedScore: SavedAttempt = { status: "submitted", score, total, correct, wrong, percentile: provisionalPercentile, answers: data.answers || {}, timeTakenSeconds, fullMock: data.fullMock === true };
+          const reportedAnswers = data.answers && Object.keys(data.answers).length > 0
+            ? data.answers
+            : attemptRef.current?.answers || {};
+          const savedScore: SavedAttempt = {
+            status: "submitted", score, total, correct, wrong,
+            percentile: provisionalPercentile, answers: reportedAnswers,
+            timeTakenSeconds,
+            fullMock: data.fullMock === true || attemptRef.current?.fullMock === true,
+          };
           // The uploaded test has already switched to its result screen. Show
           // the student's score immediately; Firestore/ranking writes can
           // finish afterwards without making the result look blank or stale.
           attemptRef.current = savedScore;
           setAttempt(savedScore);
-          await setDoc(attemptDocument, { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() }, { merge: true });
+          const attemptUpdate = isRepairingExistingSectionalAttempt
+            ? { score, total, correct, wrong, percentile: provisionalPercentile, answers: reportedAnswers, timeTakenSeconds }
+            : { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() };
+          await setDoc(attemptDocument, attemptUpdate, { merge: true });
 
           const rankingSnapshot = await getDocs(query(collection(db, "mock_rankings"), where("mockId", "==", mockId)));
           const rankings = rankingSnapshot.docs.map((item) => item.data() as RankingAttempt).filter((item) => item.userId !== user.uid);
