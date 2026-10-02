@@ -135,6 +135,10 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       }
       function reportVisibleResult() {
         if (sent) return;
+        // Legacy full-mock pages have no machine-readable result object.
+        // Their complete combined result is safe to read, including while an
+        // existing attempt is reopened for analysis.
+        if (reportLegacyFullMockResult()) return;
         // Reopened analyses have saved answers, which let the dedicated
         // reporters calculate the exact score. Do not replace it with a
         // value scraped from a partially rendered result screen.
@@ -143,7 +147,6 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         // functions. Their DOM renders in stages, so scraping it here could
         // capture a partial value before final net marks are shown.
         if (typeof TEST_META !== 'undefined') return;
-        if (reportLegacyFullMockResult()) return;
         var candidates = document.querySelectorAll('[data-score], #score, [id*="score" i], [class*="score" i], [id*="result" i], [class*="result" i]');
         for (var index = 0; index < candidates.length; index++) {
           var candidate = candidates[index];
