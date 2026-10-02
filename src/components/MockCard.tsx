@@ -38,7 +38,7 @@ export default function MockCard({ mock }: { mock: MockSummary }) {
   const isFull = mock.type === "full";
   const hasAttempt = !!mock.attempted;
   const hasCompleteScore =
-    hasAttempt && (!isFull || (mock.attempted?.fullMock === true && Number(mock.attempted?.total || 0) >= mock.questions));
+    hasAttempt && (!isFull || Number(mock.attempted?.total || 0) >= mock.questions);
 
   const percentileVal =
     hasCompleteScore && mock.attempted

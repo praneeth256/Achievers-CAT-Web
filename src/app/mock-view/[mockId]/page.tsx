@@ -14,7 +14,7 @@ type Mock = { id: string; name: string; type: "full" | "sectional"; section?: st
 // "submitting" exists only in the running page.  It prevents an unload from
 // turning a completed test into a zero while its Firestore writes finish.
 type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number; fullMock?: boolean };
-type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean; repair?: boolean };
+type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean; repair?: boolean; percentile?: number };
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const restorePayload = savedAttempt?.status === "submitted"
@@ -26,11 +26,19 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
   const bridge = String.raw`<script>
     (function () {
       var sent = false;
+      var latestPercentile = null;
       function send(type, extra) { window.parent.postMessage(Object.assign({ source: 'achievers-mock', type: type }, extra || {}), '*'); }
       function showPercentile(percentile) {
         var value = Number(percentile);
         if (!isFinite(value)) return;
-        var title = document.querySelector('#result-screen h1, #result-screen h2, .result-screen h1, .result-screen h2, h1, h2');
+        latestPercentile = value;
+        var title = document.querySelector('#result-screen h1, #result-screen h2, #result-screen [class*="title" i], .result-screen h1, .result-screen h2, .result-screen [class*="title" i]');
+        if (!title) {
+          var titles = document.querySelectorAll('h1, h2, h3, [class*="title" i]');
+          for (var titleIndex = 0; titleIndex < titles.length; titleIndex++) {
+            if (/mock|performance report|results/i.test((titles[titleIndex].textContent || '').trim())) { title = titles[titleIndex]; break; }
+          }
+        }
         if (!title) return;
         var badge = document.getElementById('achievers-percentile-badge');
         if (!badge) {
@@ -40,7 +48,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           title.style.display = 'inline-block';
           title.insertAdjacentElement('afterend', badge);
         }
-        badge.textContent = value.toFixed(2) + '%ile';
+        var text = value.toFixed(2) + '%ile';
+        if (badge.textContent !== text) badge.textContent = text;
       }
       function isLegacyMultiSectionMock() {
         if (typeof TEST_META !== 'undefined') return false;
@@ -334,7 +343,16 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         if (result) new MutationObserver(function () {
           if (getComputedStyle(result).display !== 'none') { if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); } }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
-        new MutationObserver(function () { reportVisibleResult(); }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
+        var percentileRenderQueued = false;
+        new MutationObserver(function () {
+          reportVisibleResult();
+          // Full Mock 12 replaces its result header after restoring the
+          // report. Re-attach the badge after that render settles.
+          if (latestPercentile !== null && !percentileRenderQueued) {
+            percentileRenderQueued = true;
+            setTimeout(function () { percentileRenderQueued = false; showPercentile(latestPercentile); }, 0);
+          }
+        }).observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
         document.addEventListener('click', function (event) {
           var control = event.target && event.target.closest && event.target.closest('button, [role="button"], input[type="submit"]');
           var label = (control && (control.textContent || control.value) || '').trim();
@@ -458,6 +476,14 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
             setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
           ]);
         }
+        // Older full-mock records can predate the percentile field. Their
+        // completed score remains authoritative, so backfill only the missing
+        // derived value while loading the analysis.
+        if (savedAttempt?.status === "submitted" && typeof savedAttempt.percentile !== "number") {
+          const percentile = estimatePercentile(Number(savedAttempt.score || 0), Number(savedAttempt.total || nextMock.questions || 0), nextMock.difficulty, nextMock.type);
+          savedAttempt = { ...savedAttempt, percentile };
+          await setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { percentile }, { merge: true });
+        }
         setMock(nextMock); attemptRef.current = savedAttempt; setAttempt(savedAttempt); setHtml(addAchieversBridge(source, savedAttempt)); setStatus("loading");
       } catch (error) {
         const msg = error instanceof Error ? error.message : "";
@@ -490,6 +516,11 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
                 setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { userId: user.uid, mockId, type: retryMock.type, section: retryMock.section || null, ...retrySaved, submittedAt: serverTimestamp() }, { merge: true }),
                 setDoc(doc(db, "mock_rankings", `${user.uid}_${mockId}`), { userId: user.uid, displayName: user.displayName || user.email?.split("@")[0] || "Student", mockId, score: 0, correct: 0, wrong: 0, updatedAt: serverTimestamp() }, { merge: true }),
               ]);
+            }
+            if (retrySaved?.status === "submitted" && typeof retrySaved.percentile !== "number") {
+              const percentile = estimatePercentile(Number(retrySaved.score || 0), Number(retrySaved.total || retryMock.questions || 0), retryMock.difficulty, retryMock.type);
+              retrySaved = { ...retrySaved, percentile };
+              await setDoc(doc(db, "attempts", `${user.uid}_${mockId}`), { percentile }, { merge: true });
             }
             setMock(retryMock); attemptRef.current = retrySaved; setAttempt(retrySaved); setHtml(addAchieversBridge(retrySource, retrySaved)); setStatus("loading");
             return;
@@ -704,7 +735,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
     </div>
   );
   if (!html) return <div className="flex min-h-[70vh] items-center justify-center gap-3 text-sm text-muted"><Loader2 className="animate-spin text-brand" /> Opening your mock…</div>;
-  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || attempt.fullMock === true)
+  const percentile = attempt?.status === "submitted" && (mock?.type !== "full" || Number(attempt.total || 0) >= Number(mock?.questions || 0))
     ? (typeof attempt.percentile === "number" && attempt.percentile > 0
         ? attempt.percentile
         : estimatePercentile(Number(attempt.score || 0), Number(attempt.total || mock?.questions || 0), mock?.difficulty, mock?.type))
