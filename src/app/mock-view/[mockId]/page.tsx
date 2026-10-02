@@ -57,7 +57,9 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         return true;
       }
       function addLegacyReviewButton() {
-        if (typeof QUESTIONS === 'undefined' || !QUESTIONS.length || document.getElementById('achievers-legacy-review')) return;
+        var hasLegacyQuestions = typeof QUESTIONS !== 'undefined' && QUESTIONS.length;
+        var hasFullMockQuestions = typeof FULL_MOCK_SECTIONS !== 'undefined' && typeof QUESTION_BANK !== 'undefined' && FULL_MOCK_SECTIONS.some(function (testId) { return QUESTION_BANK[testId] && QUESTION_BANK[testId].length; });
+        if ((!hasLegacyQuestions && !hasFullMockQuestions) || document.getElementById('achievers-legacy-review')) return;
         var result = document.getElementById('result-screen') || document.querySelector('[id*="result" i], [class*="result" i]');
         if (!result) return;
         var button = document.createElement('button');
@@ -69,15 +71,26 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         result.appendChild(button);
       }
       function openLegacyReview() {
-        if (typeof QUESTIONS === 'undefined') return;
         var existing = document.getElementById('achievers-legacy-review-modal');
         if (existing) { existing.style.display = 'block'; return; }
         var modal = document.createElement('div');
         modal.id = 'achievers-legacy-review-modal';
         modal.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:auto;background:rgba(15,23,42,.72);padding:20px;font-family:Arial,sans-serif;';
         var escapeText = function (value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
-        var rows = QUESTIONS.map(function (question, index) {
-          var answer = typeof answers !== 'undefined' ? answers[index] : undefined;
+        var sections = [];
+        if (typeof FULL_MOCK_SECTIONS !== 'undefined' && typeof QUESTION_BANK !== 'undefined') {
+          FULL_MOCK_SECTIONS.forEach(function (testId, sectionIndex) {
+            if (QUESTION_BANK[testId] && QUESTION_BANK[testId].length) {
+              sections.push({ id: testId, label: (typeof FULL_MOCK_LABELS !== 'undefined' && FULL_MOCK_LABELS[sectionIndex]) || ('Section ' + (sectionIndex + 1)), questions: QUESTION_BANK[testId] });
+            }
+          });
+        }
+        if (!sections.length && typeof QUESTIONS !== 'undefined' && QUESTIONS.length) sections.push({ id: '', label: '', questions: QUESTIONS });
+        if (!sections.length) return;
+        var rows = sections.map(function (section) {
+          var questionRows = section.questions.map(function (question, index) {
+          var sectionResult = typeof fullMockSectionResults !== 'undefined' ? fullMockSectionResults.filter(function (item) { return item.testId === section.id; })[0] : null;
+          var answer = sectionResult && sectionResult.answers ? sectionResult.answers[index] : (typeof answers !== 'undefined' ? (section.id && answers[section.id + ':' + index] !== undefined ? answers[section.id + ':' + index] : answers[index]) : undefined);
           var correct = question.correct == null ? '' : String(question.correct);
           var answered = answer !== undefined && answer !== '';
           var isCorrect = answered && String(answer).trim() === correct.trim();
@@ -96,6 +109,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             + (options ? '<ol style="padding-left:20px;line-height:1.5;">' + options + '</ol>' : '')
             + '<div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#f8fafc;font-size:13px;"><b>Your answer:</b> ' + (answered ? escapeText(answer) : '—') + '<br><b>Correct answer:</b> ' + escapeText(correct) + '</div>'
             + '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;"><b>Explanation</b><div style="margin-top:6px;line-height:1.6;">' + explanation + '</div></div></article>';
+          }).join('');
+          return (section.label ? '<h3 style="margin:26px 0 8px;color:#0f172a;font-size:18px;">' + escapeText(section.label) + '</h3>' : '') + questionRows;
         }).join('');
         modal.innerHTML = '<div style="max-width:960px;margin:0 auto 30px;background:#f8fafc;border-radius:16px;padding:20px;">'
           + '<div style="display:flex;justify-content:space-between;gap:16px;align-items:center;"><div><h2 style="margin:0;color:#0f172a;font-size:22px;">Question Review</h2><p style="margin:5px 0 0;color:#64748b;font-size:13px;">Your answers, correct answers, and explanations</p></div><button type="button" id="achievers-close-review" style="border:0;background:#e2e8f0;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700;">Close</button></div>' + rows + '</div>';
@@ -230,6 +245,10 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           var originalShowFullMockResults = showFullMockResults;
           window.showFullMockResults = function () {
             var value = originalShowFullMockResults.apply(this, arguments);
+            // The result screen is also rebuilt when a completed mock is
+            // reopened for analysis. Attach the review action every time the
+            // combined result renders; the helper prevents duplicates.
+            addLegacyReviewButton();
             if (!sent && typeof fullMockSectionResults !== 'undefined') {
               var score = 0, total = 0, correct = 0, wrong = 0, timeTakenSeconds = 0, allAnswers = {};
               fullMockSectionResults.forEach(function (sectionResult) {
