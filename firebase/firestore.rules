@@ -553,6 +553,30 @@ service cloud.firestore {
             && resource.data.fullMock == true
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['percentile'])
           )
+          // Ranking is computed after the completed attempt is saved. This
+          // applies to sectionals as well as full mocks.
+          || (
+            resource.data.userId == request.auth.uid
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.mockId == resource.data.mockId
+            && resource.data.status == 'submitted'
+            && request.resource.data.status == 'submitted'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['percentile'])
+          )
+          // Version-2 scoring fixes legacy templates which incorrectly
+          // awarded +3 for an incorrect TITA answer. Allow one owner-only
+          // migration when a saved legacy attempt is reopened and recalculated
+          // from its private answer set.
+          || (
+            resource.data.userId == request.auth.uid
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.mockId == resource.data.mockId
+            && resource.data.status == 'submitted'
+            && request.resource.data.status == 'submitted'
+            && (!resource.data.keys().hasAny(['scoringVersion']) || resource.data.scoringVersion < 2)
+            && request.resource.data.scoringVersion == 2
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'total', 'correct', 'wrong', 'percentile', 'answers', 'timeTakenSeconds', 'scoringVersion'])
+          )
           || isAdmin()
         );
 

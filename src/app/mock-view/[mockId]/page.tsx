@@ -13,7 +13,7 @@ import { logActivity } from "@/lib/firebase/activity";
 type Mock = { id: string; name: string; type: "full" | "sectional"; section?: string; questions: number; durationMins: number; difficulty?: string; status: "published" | "draft" };
 // "submitting" exists only in the running page.  It prevents an unload from
 // turning a completed test into a zero while its Firestore writes finish.
-type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number; fullMock?: boolean };
+type SavedAttempt = { status: "in_progress" | "submitting" | "submitted"; answers?: Record<string, string>; score?: number; total?: number; correct?: number; wrong?: number; percentile?: number; timeTakenSeconds?: number; fullMock?: boolean; scoringVersion?: number };
 type ResultMessage = { source: "achievers-mock"; type: "ready" | "started" | "submitted" | "back-to-list"; score?: number; total?: number; correct?: number; wrong?: number; answers?: Record<string, string>; secondsLeft?: number; timeTakenSeconds?: number; fullMock?: boolean; repair?: boolean; percentile?: number };
 
 function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
@@ -146,16 +146,48 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         // the student is progressing. Wait for their combined result screen.
         if (sent || isLegacyMultiSectionMock() || typeof QUESTIONS === 'undefined' || typeof answers === 'undefined') return;
         sent = true;
-        var correct = 0, wrong = 0, score = 0;
+        // Do not reuse the legacy page's displayed totals here. Some of the
+        // old files count an incorrect TITA response as correct because it
+        // carries no negative mark. It is still an incorrect response: it
+        // earns zero, and must not increase either marks or accuracy.
+        var correct = 0, wrong = 0, wrongMCQ = 0, score = 0;
         QUESTIONS.forEach(function (q, index) {
           var answer = answers[index];
-          if (!answer) return;
-          var isCorrect = String(answer).trim() === String(q.correct).trim();
+          if (answer === undefined || answer === null || String(answer).trim() === '') return;
+          var isCorrect = String(answer).trim().toLowerCase() === String(q.correct).trim().toLowerCase();
           if (isCorrect) { correct++; score += 3; }
-          else { wrong++; if (q.q_type === 'MCQ') score -= 1; }
+          else {
+            wrong++;
+            if (String(q.q_type || q.qType || '').toUpperCase() === 'MCQ') { wrongMCQ++; score -= 1; }
+          }
         });
+        correctLegacyResultDisplay(score, correct, wrong, wrongMCQ, QUESTIONS.length);
         addLegacyReviewButton();
         send('submitted', { score: score, total: QUESTIONS.length, correct: correct, wrong: wrong, answers: answers, secondsLeft: typeof secsLeft === 'number' ? secsLeft : 0, repair: window.__achieversAnalysis === true });
+      }
+      function correctLegacyResultDisplay(score, correct, wrong, wrongMCQ, total) {
+        // Legacy result pages are rendered by the uploaded HTML. Correct the
+        // two aggregate values after it renders so the student sees the same
+        // CAT score that is saved in Firestore. This is intentionally narrow:
+        // detailed question review remains authored by the uploaded mock.
+        var result = document.getElementById('result-screen');
+        if (!result || typeof QUESTIONS === 'undefined') return;
+        var scoreNode = result.querySelector('.score-big');
+        if (scoreNode) scoreNode.innerHTML = String(score) + '<span style="font-size:24px;opacity:.7">/' + (total * 3) + '</span>';
+        var correctNode = result.querySelector('.stats-row .stat-box:nth-child(1) .sv');
+        var wrongNode = result.querySelector('.stats-row .stat-box:nth-child(2) .sv');
+        if (correctNode) correctNode.textContent = String(correct);
+        if (wrongNode) wrongNode.textContent = String(wrong);
+        var wrongLabel = result.querySelector('.stats-row .stat-box:nth-child(2) .sl');
+        if (wrongLabel) wrongLabel.textContent = 'Incorrect (' + wrongMCQ + ' MCQ · −' + wrongMCQ + ')';
+        Array.prototype.forEach.call(result.querySelectorAll('.perf-item'), function (item) {
+          var label = (item.firstElementChild && item.firstElementChild.textContent || '').trim();
+          var value = item.querySelector('b');
+          if (!value) return;
+          if (/^Net Marks$/i.test(label)) value.textContent = score + ' / ' + (total * 3);
+          if (/^Questions Attempted$/i.test(label)) value.textContent = (correct + wrong) + ' / ' + total;
+          if (/^Accuracy \(attempted\)$/i.test(label)) value.textContent = (correct + wrong ? Math.round(correct / (correct + wrong) * 100) : 0) + '%';
+        });
       }
       function reportVisibleResult() {
         if (sent) return;
@@ -214,9 +246,9 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         questions.forEach(function (question, index) {
           var answer = answers[index];
           if (answer === undefined || answer === '') return;
-          var isCorrect = String(answer).trim() === String(question.correct).trim();
+          var isCorrect = String(answer).trim().toLowerCase() === String(question.correct).trim().toLowerCase();
           if (isCorrect) { correct++; score += 3; }
-          else { wrong++; if (question.qType === 'MCQ' || question.q_type === 'MCQ') score -= 1; }
+          else { wrong++; if (String(question.qType || question.q_type || '').toUpperCase() === 'MCQ') score -= 1; }
         });
         sent = true;
         send('submitted', {
@@ -624,6 +656,9 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
             percentile: provisionalPercentile, answers: reportedAnswers,
             timeTakenSeconds,
             fullMock: data.fullMock === true || attemptRef.current?.fullMock === true,
+            // Version 2 counts incorrect TITA responses as wrong responses
+            // (zero marks, never +3) in every supported mock template.
+            scoringVersion: 2,
           };
           // The uploaded test has already switched to its result screen. Show
           // the student's score immediately; Firestore/ranking writes can
@@ -631,7 +666,7 @@ export default function MockViewPage({ params }: { params: Promise<{ mockId: str
           attemptRef.current = savedScore;
           setAttempt(savedScore);
           const attemptUpdate = isRepairingExistingSectionalAttempt
-            ? { score, total, correct, wrong, percentile: provisionalPercentile, answers: reportedAnswers, timeTakenSeconds }
+            ? { score, total, correct, wrong, percentile: provisionalPercentile, answers: reportedAnswers, timeTakenSeconds, scoringVersion: 2 }
             : { userId: user.uid, mockId, type: mock.type, section: mock.section || null, ...savedScore, submittedAt: serverTimestamp() };
           await setDoc(attemptDocument, attemptUpdate, { merge: true });
 
