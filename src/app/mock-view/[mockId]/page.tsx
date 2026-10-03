@@ -81,9 +81,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         return true;
       }
       function addLegacyReviewButton() {
-        var hasLegacyQuestions = typeof QUESTIONS !== 'undefined' && QUESTIONS.length;
-        var hasFullMockQuestions = typeof FULL_MOCK_SECTIONS !== 'undefined' && typeof QUESTION_BANK !== 'undefined' && FULL_MOCK_SECTIONS.some(function (testId) { return QUESTION_BANK[testId] && QUESTION_BANK[testId].length; });
-        if ((!hasLegacyQuestions && !hasFullMockQuestions) || document.getElementById('achievers-legacy-review')) return;
+        if (!getReviewSections().length || document.getElementById('achievers-legacy-review')) return;
         var result = document.getElementById('result-screen') || document.querySelector('[id*="result" i], [class*="result" i]');
         if (!result) return;
         var button = document.createElement('button');
@@ -94,6 +92,32 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         button.onclick = openLegacyReview;
         result.appendChild(button);
       }
+      function getReviewSections() {
+        var sections = [];
+        var addSection = function (id, label, questions) {
+          if (!Array.isArray(questions) || !questions.length) return;
+          sections.push({ id: id == null ? '' : id, label: label || '', questions: questions });
+        };
+        // Full mocks normally declare the sections explicitly. Some older
+        // SIMCAT exports only expose QUESTION_BANK, so fall back to every
+        // non-empty question array in that bank instead of hiding review.
+        if (typeof QUESTION_BANK !== 'undefined') {
+          var ids = typeof FULL_MOCK_SECTIONS !== 'undefined' && Array.isArray(FULL_MOCK_SECTIONS)
+            ? FULL_MOCK_SECTIONS
+            : Object.keys(QUESTION_BANK);
+          ids.forEach(function (testId, sectionIndex) {
+            var label = '';
+            if (typeof FULL_MOCK_LABELS !== 'undefined' && FULL_MOCK_LABELS[sectionIndex]) label = FULL_MOCK_LABELS[sectionIndex];
+            else if (typeof TEST_META !== 'undefined' && Array.isArray(TEST_META)) {
+              var meta = TEST_META.filter(function (item) { return String(item.id) === String(testId); })[0];
+              label = meta && (meta.label || meta.name || meta.section);
+            }
+            addSection(testId, label || ('Section ' + (sectionIndex + 1)), QUESTION_BANK[testId]);
+          });
+        }
+        if (!sections.length && typeof QUESTIONS !== 'undefined') addSection('', '', QUESTIONS);
+        return sections;
+      }
       function openLegacyReview() {
         var existing = document.getElementById('achievers-legacy-review-modal');
         if (existing) { existing.style.display = 'block'; return; }
@@ -101,15 +125,7 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         modal.id = 'achievers-legacy-review-modal';
         modal.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:auto;background:rgba(15,23,42,.72);padding:20px;font-family:Arial,sans-serif;';
         var escapeText = function (value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
-        var sections = [];
-        if (typeof FULL_MOCK_SECTIONS !== 'undefined' && typeof QUESTION_BANK !== 'undefined') {
-          FULL_MOCK_SECTIONS.forEach(function (testId, sectionIndex) {
-            if (QUESTION_BANK[testId] && QUESTION_BANK[testId].length) {
-              sections.push({ id: testId, label: (typeof FULL_MOCK_LABELS !== 'undefined' && FULL_MOCK_LABELS[sectionIndex]) || ('Section ' + (sectionIndex + 1)), questions: QUESTION_BANK[testId] });
-            }
-          });
-        }
-        if (!sections.length && typeof QUESTIONS !== 'undefined' && QUESTIONS.length) sections.push({ id: '', label: '', questions: QUESTIONS });
+        var sections = getReviewSections();
         if (!sections.length) return;
         var rows = sections.map(function (section) {
           var questionRows = section.questions.map(function (question, index) {
@@ -373,10 +389,18 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         installNewMockHooks();
         var result = document.getElementById('result-screen');
         if (result) new MutationObserver(function () {
-          if (getComputedStyle(result).display !== 'none') { if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); } }
+          if (getComputedStyle(result).display !== 'none') {
+            // This also covers older full-mock exports whose final-result
+            // function has a non-standard name, so their review button is
+            // not dependent on a specific template implementation.
+            addLegacyReviewButton();
+            if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }
+          }
         }).observe(result, { attributes: true, attributeFilter: ['style'] });
         var percentileRenderQueued = false;
         new MutationObserver(function () {
+          var visibleResult = document.getElementById('result-screen');
+          if (visibleResult && getComputedStyle(visibleResult).display !== 'none') addLegacyReviewButton();
           reportVisibleResult();
           // Full Mock 12 replaces its result header after restoring the
           // report. Re-attach the badge after that render settles.
@@ -395,7 +419,10 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             return;
           }
           if (/start|begin|attempt/i.test(label)) send('started');
-          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () { if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); } }, 600);
+          if (/submit|finish|end test|view result/i.test(label)) setTimeout(function () {
+            addLegacyReviewButton();
+            if (!reportLegacyFullMockResult()) { reportResult(); reportNewMockResult(); reportNewMockState(); reportVisibleResult(); }
+          }, 600);
         }, true);
         // The parent also sends this payload by postMessage, but embedding it
         // makes reopening analysis deterministic even if that message arrives
