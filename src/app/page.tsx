@@ -329,7 +329,7 @@ export default function Home() {
               const Icon = card.icon;
               return (
                 <Link key={card.href} href={card.href} className="quick-card flex-col items-start p-4">
-                  <div className={`quick-icon ${card.iconBg} ${card.iconColor} mb-3`} style={{ width: 44, height: 44, borderRadius: "50%" }}>
+                  <div className={`quick-icon flex justify-center items-center ${card.iconBg} ${card.iconColor} mb-3`} style={{ width: 44, height: 44, borderRadius: "50%" }}>
                     <Icon size={20} />
                   </div>
                   <div className="min-w-0 w-full">
