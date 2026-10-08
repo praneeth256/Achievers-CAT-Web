@@ -47,7 +47,8 @@ export default function FullMocksPage() {
     getDocs(query(collection(db, "mocks"), where("type", "==", "full"), where("status", "==", "published")))
       .then(async (snap) => {
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockSummary));
-        rows.sort((a, b) => a.name.localeCompare(b.name));
+        const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
+        rows.sort((a, b) => mockNum(a.name) - mockNum(b.name));
         setMocks(rows);
         const scorerMap: Record<string, TopScorer[]> = {};
         await Promise.all(rows.map(async (mock) => {

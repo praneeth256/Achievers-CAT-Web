@@ -61,7 +61,10 @@ export default function SectionalTabs() {
           const row = { id: d.id, ...d.data() } as MockSummary;
           if (row.section && sections.includes(row.section as Section)) next[row.section as Section].push(row);
         });
-        (Object.keys(next) as Section[]).forEach((key) => next[key].sort((a, b) => a.name.localeCompare(b.name)));
+        // Sort by the trailing number in the mock name (e.g. "VARC Mock 3" → 3)
+        // so Mock 2 always comes before Mock 10 instead of lexicographic order.
+        const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
+        (Object.keys(next) as Section[]).forEach((key) => next[key].sort((a, b) => mockNum(a.name) - mockNum(b.name)));
         setData(next);
       })
       .finally(() => setLoading(false));

@@ -12,6 +12,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Persist collapsed state across page changes
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-collapsed");
+    if (stored === "true") setSidebarCollapsed(true);
+  }, []);
+
+  function toggleCollapse() {
+    setSidebarCollapsed((v) => {
+      localStorage.setItem("sidebar-collapsed", String(!v));
+      return !v;
+    });
+  }
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -41,12 +55,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <StudentStreakProvider>
-      <div className="flex min-h-screen">
+      <div
+        className="flex min-h-screen"
+        style={
+          {
+            "--current-sidebar-width": sidebarCollapsed ? "64px" : "var(--sidebar-width)",
+          } as React.CSSProperties
+        }
+      >
         {/* Fixed sidebar */}
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleCollapse}
+        />
 
         {/* Main content area — offset by sidebar width on desktop */}
-        <div className="sidebar-content flex flex-col">
+        <div
+          className="sidebar-content flex flex-col"
+          style={{ marginLeft: undefined }}
+          data-collapsed={sidebarCollapsed ? "true" : "false"}
+        >
           <TopBar onMenuClick={() => setSidebarOpen((v) => !v)} />
           {showBackButton && (
             <div className="border-b border-border/60 bg-white/55 px-4 py-2.5 sm:px-6 lg:px-8">
