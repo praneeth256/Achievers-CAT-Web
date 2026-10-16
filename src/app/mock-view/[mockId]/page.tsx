@@ -137,11 +137,11 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             var answered = answer !== undefined && answer !== '';
             var isCorrect = answered && String(answer).trim() === correct.trim();
             // Passage / set context — try every field name used by CAT mock exports
-            var passageText = question.passage || question.para || question.comprehension || question.passageText || question.passage_text || question.comprehensionText || question.context || question.directions || question.setInfo || question.caseStudy || question.set || question.intro || question.paragraph || question.case || question.stimulus || '';
+            var passageText = question.passage || question.comprehension || question.passageText || question.passage_text || question.comprehensionText || question.setInfo || question.caseStudy || '';
             // Normalise: strip lone whitespace / empty strings
             if (passageText && !passageText.trim()) passageText = '';
             // Stable key: use explicit id when available, else first 120 chars of text
-            var passageKey = question.passageId || question.setId || question.groupId || question.pid || question.paragraphId || (passageText ? passageText.trim().substring(0, 120) : '');
+            var passageKey = question.passageId || question.setId || question.groupId || question.pid || question.caseId || question.comprehensionId || (passageText ? passageText.trim().substring(0, 120) : '');
             // Detect label — RC vs DILR heuristic based on section name
             var passageLabel = /dilr|di|lr|data/i.test(section.label) ? 'Set Information' : 'Reading Passage';
             allQuestions.push({ question: question, index: index, sectionLabel: section.label, answer: answer, correct: correct, answered: answered, isCorrect: isCorrect, passageText: passageText, passageKey: passageKey, passageLabel: passageLabel });
@@ -159,8 +159,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         function renderQuestion(idx) {
           var item = allQuestions[idx];
           var q = item.question;
-          var prompt = q.text || q.question || q.questionText || ('Question ' + (item.index + 1));
-          var explanation = q.solution || q.explanation || q.rationale || 'No written explanation was included in this uploaded mock.';
+          var prompt = q.text || q.question || q.questionText || q.q || q.ques || q.stem || q.questionStem || q.para || q.paragraph || q.body || q.content || q.html || q.questionHtml || q.qHtml || q.desc || q.description || q.context || q.intro || q.stimulus || ('Question ' + (item.index + 1));
+          var explanation = q.solution || q.explanation || q.rationale || q.sol || q.ans_exp || q.ansExp || q.hint || q.discuss || q.reason || 'No written explanation was included in this uploaded mock.';
           var statusColor = !item.answered ? '#64748b' : (item.isCorrect ? '#15803d' : '#b91c1c');
           var statusText = !item.answered ? 'Not Attempted' : (item.isCorrect ? '\u2713 Correct' : '\u2717 Incorrect');
           var statusBg = !item.answered ? '#f1f5f9' : (item.isCorrect ? '#dcfce7' : '#fee2e2');
@@ -169,8 +169,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
           if (q.options && q.options.length) {
             optionsHtml = '<div style="margin-top:16px;">';
             q.options.forEach(function (option, optionIndex) {
-              var value = typeof option === 'object' ? (option.num || option.value || optionIndex + 1) : optionIndex + 1;
-              var label = typeof option === 'object' ? (option.text || option.label || value) : option;
+              var value = typeof option === 'object' ? (option.num || option.value || option.id || option.key || option.sno || option.sr || (optionIndex + 1)) : (optionIndex + 1);
+              var label = typeof option === 'object' ? (option.text || option.label || option.o || option.opt || option.content || option.html || option.oHtml || option.name || option.desc || option.optText || option.answer || value) : option;
               var isYours = item.answered && String(item.answer).trim() === String(value).trim();
               var isCorrectOpt = String(item.correct).trim() === String(value).trim();
               var bg = isCorrectOpt ? '#dcfce7' : (isYours && !isCorrectOpt ? '#fee2e2' : '#fff');
@@ -180,6 +180,26 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
               optionsHtml += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:8px;background:' + bg + ';border:' + border + ';"><span style="min-width:22px;font-weight:700;color:#475569;">' + value + '.</span><span style="flex:1;line-height:1.5;color:#1e293b;">' + label + '</span><span style="font-weight:700;color:' + iColor + ';">' + indicator + '</span></div>';
             });
             optionsHtml += '</div>';
+          }
+          // Fallback: some mocks store options as q.opt1/q.opt2/q.opt3/q.opt4
+          if (!optionsHtml && (q.opt1 || q.opt2 || q.opt3 || q.opt4 || q.a || q.b || q.c || q.d)) {
+            var fallbackOpts = [
+              { v: '1', t: q.opt1 || q.a }, { v: '2', t: q.opt2 || q.b },
+              { v: '3', t: q.opt3 || q.c }, { v: '4', t: q.opt4 || q.d }
+            ].filter(function(o) { return o.t; });
+            if (fallbackOpts.length) {
+              optionsHtml = '<div style="margin-top:16px;">';
+              fallbackOpts.forEach(function(o) {
+                var isYours = item.answered && String(item.answer).trim() === String(o.v).trim();
+                var isCorrectOpt = String(item.correct).trim() === String(o.v).trim();
+                var bg = isCorrectOpt ? '#dcfce7' : (isYours && !isCorrectOpt ? '#fee2e2' : '#fff');
+                var border = isCorrectOpt ? '1.5px solid #15803d' : (isYours && !isCorrectOpt ? '1.5px solid #b91c1c' : '1px solid #e2e8f0');
+                var indicator = isCorrectOpt ? ' ✓' : (isYours && !isCorrectOpt ? ' ✗' : '');
+                var iColor = isCorrectOpt ? '#15803d' : '#b91c1c';
+                optionsHtml += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:8px;background:' + bg + ';border:' + border + ';"><span style="min-width:22px;font-weight:700;color:#475569;">' + o.v + '.</span><span style="flex:1;line-height:1.5;color:#1e293b;">' + o.t + '</span><span style="font-weight:700;color:' + iColor + ';">' + indicator + '</span></div>';
+              });
+              optionsHtml += '</div>';
+            }
           }
           var body = document.getElementById('achievers-review-qbody');
           // Passage / set context block
