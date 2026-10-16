@@ -136,7 +136,15 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             var correct = question.correct == null ? '' : String(question.correct);
             var answered = answer !== undefined && answer !== '';
             var isCorrect = answered && String(answer).trim() === correct.trim();
-            allQuestions.push({ question: question, index: index, sectionLabel: section.label, answer: answer, correct: correct, answered: answered, isCorrect: isCorrect });
+            // Passage / set context — try every field name used by CAT mock exports
+            var passageText = question.passage || question.para || question.comprehension || question.passageText || question.passage_text || question.comprehensionText || question.context || question.directions || question.setInfo || question.caseStudy || question.set || question.intro || question.paragraph || question.case || question.stimulus || '';
+            // Normalise: strip lone whitespace / empty strings
+            if (passageText && !passageText.trim()) passageText = '';
+            // Stable key: use explicit id when available, else first 120 chars of text
+            var passageKey = question.passageId || question.setId || question.groupId || question.pid || question.paragraphId || (passageText ? passageText.trim().substring(0, 120) : '');
+            // Detect label — RC vs DILR heuristic based on section name
+            var passageLabel = /dilr|di|lr|data/i.test(section.label) ? 'Set Information' : 'Reading Passage';
+            allQuestions.push({ question: question, index: index, sectionLabel: section.label, answer: answer, correct: correct, answered: answered, isCorrect: isCorrect, passageText: passageText, passageKey: passageKey, passageLabel: passageLabel });
           });
         });
         var currentIndex = 0;
@@ -174,12 +182,32 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
             optionsHtml += '</div>';
           }
           var body = document.getElementById('achievers-review-qbody');
+          // Passage / set context block
+          var passageHtml = '';
+          if (item.passageText) {
+            // Detect if this is same passage as adjacent question (collapse by default if same)
+            var prevKey = idx > 0 ? allQuestions[idx - 1].passageKey : null;
+            var isSameAsLast = prevKey && prevKey === item.passageKey;
+            var passageId = 'achievers-passage-' + idx;
+            var btnId = 'achievers-passage-toggle-' + idx;
+            // Always show inline; collapsed state controlled by max-height toggle
+            passageHtml = '<div style="margin-bottom:16px;border-radius:10px;border:1px solid #bfdbfe;background:#eff6ff;overflow:hidden;">'
+              + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;user-select:none;" onclick="var b=document.getElementById(\'' + passageId + '\');var t=document.getElementById(\'' + btnId + '\');if(b.style.display===\'none\'){b.style.display=\'block\';t.textContent=\'Hide ▲\';}else{b.style.display=\'none\';t.textContent=\'Show ▼\';}">'
+              + '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1d4ed8;">' + escapeHtml(item.passageLabel) + (isSameAsLast ? ' (same as previous)' : '') + '</span>'
+              + '<button id="' + btnId + '" type="button" style="border:0;background:transparent;font-size:12px;font-weight:700;color:#1d4ed8;cursor:pointer;padding:0;">'
+              + (isSameAsLast ? 'Show ▼' : 'Hide ▲') + '</button>'
+              + '</div>'
+              + '<div id="' + passageId + '" style="padding:0 16px 16px;line-height:1.85;color:#1e293b;font-size:14px;display:' + (isSameAsLast ? 'none' : 'block') + ';">'
+              + item.passageText
+              + '</div></div>';
+          }
           body.innerHTML =
             '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">'
             + '<div><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;">' + escapeHtml(item.sectionLabel || '') + '</span>'
             + '<h3 style="margin:4px 0 0;font-size:17px;font-weight:700;color:#0f172a;">Question ' + (idx + 1) + ' <span style="color:#94a3b8;font-size:14px;font-weight:400;">of ' + allQuestions.length + '</span></h3></div>'
             + '<span style="padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';border:1px solid ' + statusBorder + ';">' + statusText + '</span>'
             + '</div>'
+            + passageHtml
             + '<div style="line-height:1.75;color:#1e293b;font-size:15px;padding:16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;">' + prompt + '</div>'
             + optionsHtml
             + '<div style="margin-top:20px;padding:14px 16px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">'
