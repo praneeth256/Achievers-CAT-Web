@@ -87,8 +87,8 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
         var button = document.createElement('button');
         button.id = 'achievers-legacy-review';
         button.type = 'button';
-        button.textContent = 'View Questions & Explanations';
-        button.style.cssText = 'margin:16px auto;display:block;border:0;border-radius:8px;background:#1976b9;color:white;padding:11px 16px;font:600 14px Arial,sans-serif;cursor:pointer;';
+        button.textContent = 'Review Questions';
+        button.style.cssText = 'margin:16px auto;display:block;border:0;border-radius:8px;background:#1976b9;color:white;padding:11px 20px;font:600 14px Arial,sans-serif;cursor:pointer;';
         button.onclick = openLegacyReview;
         result.appendChild(button);
       }
@@ -120,42 +120,151 @@ function addAchieversBridge(html: string, savedAttempt?: SavedAttempt | null) {
       }
       function openLegacyReview() {
         var existing = document.getElementById('achievers-legacy-review-modal');
-        if (existing) { existing.style.display = 'block'; return; }
+        if (existing) { existing.style.display = 'flex'; return; }
         var modal = document.createElement('div');
         modal.id = 'achievers-legacy-review-modal';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:auto;background:rgba(15,23,42,.72);padding:20px;font-family:Arial,sans-serif;';
-        var escapeText = function (value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+        modal.style.cssText = 'position:fixed;inset:0;z-index:2147483647;overflow:hidden;background:#f1f5f9;font-family:Arial,sans-serif;display:flex;flex-direction:column;';
+        var escapeHtml = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
         var sections = getReviewSections();
         if (!sections.length) return;
-        var rows = sections.map(function (section) {
-          var questionRows = section.questions.map(function (question, index) {
-          var sectionResult = typeof fullMockSectionResults !== 'undefined' ? fullMockSectionResults.filter(function (item) { return item.testId === section.id; })[0] : null;
-          var answer = sectionResult && sectionResult.answers ? sectionResult.answers[index] : (typeof answers !== 'undefined' ? (section.id && answers[section.id + ':' + index] !== undefined ? answers[section.id + ':' + index] : answers[index]) : undefined);
-          var correct = question.correct == null ? '' : String(question.correct);
-          var answered = answer !== undefined && answer !== '';
-          var isCorrect = answered && String(answer).trim() === correct.trim();
-          var status = !answered ? 'Not attempted' : (isCorrect ? 'Correct' : 'Incorrect');
-          var colour = !answered ? '#64748b' : (isCorrect ? '#15803d' : '#b91c1c');
-          var prompt = question.text || question.question || question.questionText || ('Question ' + (index + 1));
-          var explanation = question.solution || question.explanation || question.rationale || 'No written explanation was included in this uploaded mock.';
-          var options = (question.options || []).map(function (option, optionIndex) {
-            var value = typeof option === 'object' ? (option.num || option.value || optionIndex + 1) : optionIndex + 1;
-            var label = typeof option === 'object' ? (option.text || option.label || value) : option;
-            return '<li style="margin:6px 0;">' + value + '. ' + label + '</li>';
-          }).join('');
-          return '<article style="border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin:14px 0;background:#fff;">'
-            + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;"><b>Question ' + (index + 1) + '</b><span style="color:' + colour + ';font-weight:700;">' + status + '</span></div>'
-            + '<div style="margin-top:12px;line-height:1.6;color:#1e293b;">' + prompt + '</div>'
-            + (options ? '<ol style="padding-left:20px;line-height:1.5;">' + options + '</ol>' : '')
-            + '<div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#f8fafc;font-size:13px;"><b>Your answer:</b> ' + (answered ? escapeText(answer) : '—') + '<br><b>Correct answer:</b> ' + escapeText(correct) + '</div>'
-            + '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;"><b>Explanation</b><div style="margin-top:6px;line-height:1.6;">' + explanation + '</div></div></article>';
-          }).join('');
-          return (section.label ? '<h3 style="margin:26px 0 8px;color:#0f172a;font-size:18px;">' + escapeText(section.label) + '</h3>' : '') + questionRows;
-        }).join('');
-        modal.innerHTML = '<div style="max-width:960px;margin:0 auto 30px;background:#f8fafc;border-radius:16px;padding:20px;">'
-          + '<div style="display:flex;justify-content:space-between;gap:16px;align-items:center;"><div><h2 style="margin:0;color:#0f172a;font-size:22px;">Question Review</h2><p style="margin:5px 0 0;color:#64748b;font-size:13px;">Your answers, correct answers, and explanations</p></div><button type="button" id="achievers-close-review" style="border:0;background:#e2e8f0;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700;">Close</button></div>' + rows + '</div>';
+        // Flatten all questions into a single list with section info
+        var allQuestions = [];
+        sections.forEach(function (section) {
+          section.questions.forEach(function (question, index) {
+            var sectionResult = typeof fullMockSectionResults !== 'undefined' ? fullMockSectionResults.filter(function (r) { return r.testId === section.id; })[0] : null;
+            var answer = sectionResult && sectionResult.answers ? sectionResult.answers[index] : (typeof answers !== 'undefined' ? (section.id && answers[section.id + ':' + index] !== undefined ? answers[section.id + ':' + index] : answers[index]) : undefined);
+            var correct = question.correct == null ? '' : String(question.correct);
+            var answered = answer !== undefined && answer !== '';
+            var isCorrect = answered && String(answer).trim() === correct.trim();
+            allQuestions.push({ question: question, index: index, sectionLabel: section.label, answer: answer, correct: correct, answered: answered, isCorrect: isCorrect });
+          });
+        });
+        var currentIndex = 0;
+        function getPaletteBg(item) {
+          if (!item.answered) return '#e2e8f0';
+          return item.isCorrect ? '#dcfce7' : '#fee2e2';
+        }
+        function getPaletteColor(item) {
+          if (!item.answered) return '#475569';
+          return item.isCorrect ? '#15803d' : '#b91c1c';
+        }
+        function renderQuestion(idx) {
+          var item = allQuestions[idx];
+          var q = item.question;
+          var prompt = q.text || q.question || q.questionText || ('Question ' + (item.index + 1));
+          var explanation = q.solution || q.explanation || q.rationale || 'No written explanation was included in this uploaded mock.';
+          var statusColor = !item.answered ? '#64748b' : (item.isCorrect ? '#15803d' : '#b91c1c');
+          var statusText = !item.answered ? 'Not Attempted' : (item.isCorrect ? '\u2713 Correct' : '\u2717 Incorrect');
+          var statusBg = !item.answered ? '#f1f5f9' : (item.isCorrect ? '#dcfce7' : '#fee2e2');
+          var statusBorder = !item.answered ? '#e2e8f0' : (item.isCorrect ? '#86efac' : '#fca5a5');
+          var optionsHtml = '';
+          if (q.options && q.options.length) {
+            optionsHtml = '<div style="margin-top:16px;">';
+            q.options.forEach(function (option, optionIndex) {
+              var value = typeof option === 'object' ? (option.num || option.value || optionIndex + 1) : optionIndex + 1;
+              var label = typeof option === 'object' ? (option.text || option.label || value) : option;
+              var isYours = item.answered && String(item.answer).trim() === String(value).trim();
+              var isCorrectOpt = String(item.correct).trim() === String(value).trim();
+              var bg = isCorrectOpt ? '#dcfce7' : (isYours && !isCorrectOpt ? '#fee2e2' : '#fff');
+              var border = isCorrectOpt ? '1.5px solid #15803d' : (isYours && !isCorrectOpt ? '1.5px solid #b91c1c' : '1px solid #e2e8f0');
+              var indicator = isCorrectOpt ? ' \u2713' : (isYours && !isCorrectOpt ? ' \u2717' : '');
+              var iColor = isCorrectOpt ? '#15803d' : '#b91c1c';
+              optionsHtml += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:8px;background:' + bg + ';border:' + border + ';"><span style="min-width:22px;font-weight:700;color:#475569;">' + value + '.</span><span style="flex:1;line-height:1.5;color:#1e293b;">' + label + '</span><span style="font-weight:700;color:' + iColor + ';">' + indicator + '</span></div>';
+            });
+            optionsHtml += '</div>';
+          }
+          var body = document.getElementById('achievers-review-qbody');
+          body.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">'
+            + '<div><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;">' + escapeHtml(item.sectionLabel || '') + '</span>'
+            + '<h3 style="margin:4px 0 0;font-size:17px;font-weight:700;color:#0f172a;">Question ' + (idx + 1) + ' <span style="color:#94a3b8;font-size:14px;font-weight:400;">of ' + allQuestions.length + '</span></h3></div>'
+            + '<span style="padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';border:1px solid ' + statusBorder + ';">' + statusText + '</span>'
+            + '</div>'
+            + '<div style="line-height:1.75;color:#1e293b;font-size:15px;padding:16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;">' + prompt + '</div>'
+            + optionsHtml
+            + '<div style="margin-top:20px;padding:14px 16px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">'
+            + '<div style="display:flex;gap:40px;flex-wrap:wrap;">'
+            + '<div><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.05em;">Your Response</p><p style="margin:0;font-size:16px;font-weight:700;color:' + statusColor + ';">' + (item.answered ? escapeHtml(item.answer) : '\u2014') + '</p></div>'
+            + '<div><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.05em;">Correct Answer</p><p style="margin:0;font-size:16px;font-weight:700;color:#15803d;">' + escapeHtml(item.correct) + '</p></div>'
+            + '<div style="margin-left:auto;"><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.05em;">Result</p><p style="margin:0;font-size:16px;font-weight:700;color:' + statusColor + ';">' + (item.answered ? (item.isCorrect ? 'Correct' : 'Incorrect') : 'Not Attempted') + '</p></div>'
+            + '</div></div>'
+            + '<div style="margin-top:20px;padding:16px 18px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;">'
+            + '<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.06em;">Solution &amp; Explanation</p>'
+            + '<div style="line-height:1.75;color:#1e293b;font-size:14px;">' + explanation + '</div>'
+            + '</div>';
+          // Update palette highlight
+          var paletteBtns = document.querySelectorAll('.achievers-palette-btn');
+          for (var pi = 0; pi < paletteBtns.length; pi++) {
+            var isActive = pi === idx;
+            paletteBtns[pi].style.outline = isActive ? '2.5px solid #1976b9' : 'none';
+            paletteBtns[pi].style.outlineOffset = '2px';
+            paletteBtns[pi].style.transform = isActive ? 'scale(1.12)' : 'scale(1)';
+          }
+          // Scroll active palette button into view
+          var activeBtn = document.querySelector('.achievers-palette-btn[data-qidx="' + idx + '"]');
+          if (activeBtn && activeBtn.scrollIntoView) activeBtn.scrollIntoView({ block: 'nearest' });
+          // Update nav buttons
+          var prevBtn = document.getElementById('achievers-prev-btn');
+          var nextBtn = document.getElementById('achievers-next-btn');
+          prevBtn.disabled = idx === 0;
+          prevBtn.style.opacity = idx === 0 ? '.35' : '1';
+          prevBtn.style.cursor = idx === 0 ? 'not-allowed' : 'pointer';
+          nextBtn.disabled = idx === allQuestions.length - 1;
+          nextBtn.style.opacity = idx === allQuestions.length - 1 ? '.35' : '1';
+          nextBtn.style.cursor = idx === allQuestions.length - 1 ? 'not-allowed' : 'pointer';
+          var counter = document.getElementById('achievers-review-counter');
+          if (counter) counter.textContent = (idx + 1) + ' / ' + allQuestions.length;
+        }
+        // Build palette HTML
+        var paletteHtml = '<div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;"><p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;">Choose a Question</p></div>';
+        paletteHtml += '<div style="flex:1;overflow-y:auto;padding:10px 12px;">';
+        var sectionStart = 0;
+        sections.forEach(function (section) {
+          if (section.label) paletteHtml += '<p style="margin:8px 0 6px;font-size:10px;font-weight:700;text-transform:uppercase;color:#1976b9;letter-spacing:.05em;">' + escapeHtml(section.label) + '</p>';
+          paletteHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
+          section.questions.forEach(function (q, qi) {
+            var gIdx = sectionStart + qi;
+            var item = allQuestions[gIdx];
+            paletteHtml += '<button class="achievers-palette-btn" data-qidx="' + gIdx + '" type="button" style="width:34px;height:34px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:' + getPaletteBg(item) + ';color:' + getPaletteColor(item) + ';transition:transform .1s,outline .1s;">' + (gIdx + 1) + '</button>';
+          });
+          paletteHtml += '</div>';
+          sectionStart += section.questions.length;
+        });
+        paletteHtml += '</div>';
+        // Legend
+        paletteHtml += '<div style="padding:10px 14px;border-top:1px solid #e2e8f0;flex-shrink:0;font-size:11px;color:#64748b;">'
+          + '<p style="margin:0 0 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Legend</p>'
+          + '<div style="display:flex;flex-direction:column;gap:5px;">'
+          + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#dcfce7;border:1px solid #86efac;vertical-align:middle;margin-right:5px;"></span>Correct</span>'
+          + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#fee2e2;border:1px solid #fca5a5;vertical-align:middle;margin-right:5px;"></span>Incorrect</span>'
+          + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#e2e8f0;vertical-align:middle;margin-right:5px;"></span>Not Attempted</span>'
+          + '</div></div>';
+        modal.innerHTML =
+          // Top bar
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;gap:12px;flex-shrink:0;">'
+          + '<div><h2 style="margin:0;font-size:18px;font-weight:700;color:#0f172a;">Review Questions</h2><p style="margin:2px 0 0;font-size:12px;color:#64748b;">Your responses, correct answers, and explanations</p></div>'
+          + '<button type="button" id="achievers-close-review" style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:13px;color:#0f172a;">&larr; Back to Analysis</button>'
+          + '</div>'
+          // Body: question pane + palette
+          + '<div style="display:flex;flex:1;min-height:0;overflow:hidden;">'
+          + '<div id="achievers-review-qbody" style="flex:1;overflow-y:auto;padding:24px 28px;"></div>'
+          + '<div style="width:210px;flex-shrink:0;border-left:1px solid #e2e8f0;background:#fff;display:flex;flex-direction:column;overflow:hidden;">' + paletteHtml + '</div>'
+          + '</div>'
+          // Bottom nav
+          + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#fff;border-top:1px solid #e2e8f0;flex-shrink:0;gap:12px;">'
+          + '<button type="button" id="achievers-prev-btn" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:13px;color:#0f172a;">&larr; Previous</button>'
+          + '<span id="achievers-review-counter" style="font-size:13px;color:#64748b;font-weight:600;"></span>'
+          + '<button type="button" id="achievers-next-btn" style="border:0;background:#1976b9;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:13px;color:#fff;">Next &rarr;</button>'
+          + '</div>';
         document.body.appendChild(modal);
         document.getElementById('achievers-close-review').onclick = function () { modal.remove(); };
+        document.getElementById('achievers-prev-btn').onclick = function () { if (currentIndex > 0) { currentIndex--; renderQuestion(currentIndex); } };
+        document.getElementById('achievers-next-btn').onclick = function () { if (currentIndex < allQuestions.length - 1) { currentIndex++; renderQuestion(currentIndex); } };
+        modal.addEventListener('click', function (e) {
+          var btn = e.target && e.target.closest && e.target.closest('.achievers-palette-btn');
+          if (btn) { currentIndex = parseInt(btn.getAttribute('data-qidx'), 10); renderQuestion(currentIndex); }
+        });
+        renderQuestion(0);
       }
       function reportResult() {
         // Older full-mock files expose one section through QUESTIONS while
