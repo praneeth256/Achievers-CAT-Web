@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MockCard, { MockSummary } from "./MockCard";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { Loader2 } from "lucide-react";
 
@@ -25,33 +25,39 @@ export default function SectionalTabs() {
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(query(collection(db, "attempts"), where("userId", "==", user.uid)), (snapshot) => {
-      const next: Record<string, MockSummary["attempted"]> = {};
-      const firstSubmittedAt: Record<string, number> = {};
-      snapshot.docs.forEach((item) => {
-        const value = item.data();
-        if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "sectional" || !value.mockId) return;
-        const submittedAt = value.submittedAt?.toDate?.() || value.startedAt?.toDate?.();
-        const mockId = String(value.mockId);
-        const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
-        // Some legacy uploads created one document per reattempt. Keep the
-        // first completed record so the card and its analysis never drift to
-        // a later retake. Current uploads use one document and follow this
-        // same rule naturally.
-        if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
-        firstSubmittedAt[mockId] = attemptedAt;
-        next[mockId] = {
-          score: Number(value.score || 0),
-          total: Number(value.total || 0),
-          correct: Number(value.correct || 0),
-          wrong: Number(value.wrong || 0),
-          percentile: typeof value.percentile === "number" ? value.percentile : undefined,
-          attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now",
-        };
+    let active = true;
+    // One-shot read — attempted badges don't need real-time updates while browsing.
+    getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid)))
+      .then((snapshot) => {
+        if (!active) return;
+        const next: Record<string, MockSummary["attempted"]> = {};
+        const firstSubmittedAt: Record<string, number> = {};
+        snapshot.docs.forEach((item) => {
+          const value = item.data();
+          if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "sectional" || !value.mockId) return;
+          const submittedAt = value.submittedAt?.toDate?.() || value.startedAt?.toDate?.();
+          const mockId = String(value.mockId);
+          const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
+          // Some legacy uploads created one document per reattempt. Keep the
+          // first completed record so the card and its analysis never drift to
+          // a later retake. Current uploads use one document and follow this
+          // same rule naturally.
+          if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
+          firstSubmittedAt[mockId] = attemptedAt;
+          next[mockId] = {
+            score: Number(value.score || 0),
+            total: Number(value.total || 0),
+            correct: Number(value.correct || 0),
+            wrong: Number(value.wrong || 0),
+            percentile: typeof value.percentile === "number" ? value.percentile : undefined,
+            attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now",
+          };
+        });
+        setAttempts(next);
       });
-      setAttempts(next);
-    });
+    return () => { active = false; };
   }, [user]);
+
 
   useEffect(() => {
     getDocs(query(collection(db, "mocks"), where("type", "==", "sectional"), where("status", "==", "published")))

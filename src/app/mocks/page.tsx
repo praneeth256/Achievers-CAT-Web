@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { collection, getDocs, onSnapshot, orderBy, query, where, limit } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where, limit } from "firebase/firestore";
 import MockCard, { MockSummary, TopScorer } from "@/components/MockCard";
 import { auth, db } from "@/lib/firebase/client";
 import { BarChart3, Clock, Loader2, Trophy } from "lucide-react";
@@ -18,37 +18,67 @@ export default function FullMocksPage() {
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(query(collection(db, "attempts"), where("userId", "==", user.uid)), (snapshot) => {
-      const next: Record<string, MockSummary["attempted"]> = {};
-      const firstSubmittedAt: Record<string, number> = {};
-      snapshot.docs.forEach((item) => {
-        const value = item.data();
-        if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "full" || !value.mockId) return;
-        const submittedAt = value.submittedAt?.toDate?.();
-        const mockId = String(value.mockId);
-        const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
-        if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
-        firstSubmittedAt[mockId] = attemptedAt;
-        next[mockId] = {
-          score: Number(value.score || 0),
-          total: Number(value.total || 0),
-          correct: Number(value.correct || 0),
-          wrong: Number(value.wrong || 0),
-          percentile: typeof value.percentile === "number" ? value.percentile : undefined,
-          fullMock: value.fullMock === true,
-          attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now",
-        };
+    let active = true;
+    // One-shot read — the mock list only needs to know if the user already
+    // submitted, which won't change while they browse; no live listener needed.
+    getDocs(query(collection(db, "attempts"), where("userId", "==", user.uid)))
+      .then((snapshot) => {
+        if (!active) return;
+        const next: Record<string, MockSummary["attempted"]> = {};
+        const firstSubmittedAt: Record<string, number> = {};
+        snapshot.docs.forEach((item) => {
+          const value = item.data();
+          if (value.status !== "submitted" || String(value.type || "").toLowerCase() !== "full" || !value.mockId) return;
+          const submittedAt = value.submittedAt?.toDate?.();
+          const mockId = String(value.mockId);
+          const attemptedAt = submittedAt?.getTime() || Number.MAX_SAFE_INTEGER;
+          if (firstSubmittedAt[mockId] !== undefined && firstSubmittedAt[mockId] <= attemptedAt) return;
+          firstSubmittedAt[mockId] = attemptedAt;
+          next[mockId] = {
+            score: Number(value.score || 0),
+            total: Number(value.total || 0),
+            correct: Number(value.correct || 0),
+            wrong: Number(value.wrong || 0),
+            percentile: typeof value.percentile === "number" ? value.percentile : undefined,
+            fullMock: value.fullMock === true,
+            attemptedOn: submittedAt ? submittedAt.toLocaleDateString() : "just now",
+          };
+        });
+        setAttempts(next);
       });
-      setAttempts(next);
-    });
+    return () => { active = false; };
   }, [user]);
 
+  const SCORERS_CACHE_KEY = "achievers-mock-top-scorers";
+  const SCORERS_CACHE_TTL = 5 * 60 * 1000;
+
   useEffect(() => {
+    // Try session cache first to avoid N+1 reads on repeated visits
+    try {
+      const cached = sessionStorage.getItem(SCORERS_CACHE_KEY);
+      if (cached) {
+        const { data, ts } = JSON.parse(cached) as { data: Record<string, TopScorer[]>; ts: number };
+        if (Date.now() - ts < SCORERS_CACHE_TTL) {
+          setTopScorers(data);
+          // Still need to fetch the mock list itself
+          getDocs(query(collection(db, "mocks"), where("type", "==", "full"), where("status", "==", "published")))
+            .then((snap) => {
+              const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockSummary));
+              const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
+              rows.sort((a, b) => mockNum(b.name) - mockNum(a.name));
+              setMocks(rows);
+            })
+            .finally(() => setLoading(false));
+          return;
+        }
+      }
+    } catch { /* sessionStorage unavailable */ }
+
     getDocs(query(collection(db, "mocks"), where("type", "==", "full"), where("status", "==", "published")))
       .then(async (snap) => {
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MockSummary));
         const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
-        rows.sort((a, b) => mockNum(a.name) - mockNum(b.name));
+        rows.sort((a, b) => mockNum(b.name) - mockNum(a.name));
         setMocks(rows);
         const scorerMap: Record<string, TopScorer[]> = {};
         await Promise.all(rows.map(async (mock) => {
@@ -56,9 +86,11 @@ export default function FullMocksPage() {
           scorerMap[mock.id] = rankSnap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || "Student"), score: Number(d.data().score || 0) }));
         }));
         setTopScorers(scorerMap);
+        try { sessionStorage.setItem(SCORERS_CACHE_KEY, JSON.stringify({ data: scorerMap, ts: Date.now() })); } catch { /* ignore */ }
       })
       .finally(() => setLoading(false));
   }, []);
+
 
   return (
     <div className="min-h-screen bg-background">

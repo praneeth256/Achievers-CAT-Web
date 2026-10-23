@@ -22,6 +22,7 @@ import { auth, db } from "@/lib/firebase/client";
 import { isAdminUser } from "@/lib/firebase/profile";
 import { signOutUser } from "@/lib/firebase/auth";
 import { useStudentStreak } from "./StudentStreakProvider";
+import { useNotifications } from "./NotificationsContext";
 
 const nav = [
   { label: "Home", href: "/" },
@@ -77,11 +78,9 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const streak = useStudentStreak();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<{ id: string; text: string; createdAt?: { toMillis?: () => number } }[]>([]);
-  const [readNotifications, setReadNotifications] = useState<string[]>([]);
-
   const accountRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const { notifications, readNotifications, markAllRead: markAllNotificationsRead } = useNotifications();
 
   useEffect(() => {
     const loadUser = async (nextUser: User | null) => {
@@ -97,23 +96,6 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const readKey = `achievers-read-notifications-${user.uid}`;
-    const welcomeId = `welcome-${user.uid}`;
-    const saved = JSON.parse(localStorage.getItem(readKey) || "[]") as string[];
-    void getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(30))).then((snapshot) => {
-      setReadNotifications(saved);
-      const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = snapshot.docs.map((item) => ({ id: item.id, text: String(item.data().text || ""), createdAt: item.data().createdAt }));
-      if (!localStorage.getItem(welcomeId)) {
-        items.push({ id: welcomeId, text: "Welcome to Achievers CAT. Hope your journey is smooth and highly productive!" });
-        localStorage.setItem(welcomeId, "true");
-      }
-      items.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      setNotifications(items);
-    });
-  }, [user]);
-
-  useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
       if (accountRef.current && !accountRef.current.contains(event.target as Node)) setAccountOpen(false);
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) setNotificationsOpen(false);
@@ -121,13 +103,6 @@ export default function Header() {
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
-
-  function markAllNotificationsRead() {
-    if (!user) return;
-    const ids = notifications.map((n) => n.id);
-    setReadNotifications(ids);
-    localStorage.setItem(`achievers-read-notifications-${user.uid}`, JSON.stringify(ids));
-  }
 
   async function logout() {
     await signOutUser();

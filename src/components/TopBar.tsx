@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
+import { auth } from "@/lib/firebase/client";
 import { isAdminUser } from "@/lib/firebase/profile";
 import { signOutUser } from "@/lib/firebase/auth";
 import { useStudentStreak } from "./StudentStreakProvider";
+import { useNotifications } from "./NotificationsContext";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -32,11 +32,10 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
   const streak = useStudentStreak();
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<{ id: string; text: string; createdAt?: { toMillis?: () => number } }[]>([]);
-  const [readNotifications, setReadNotifications] = useState<string[]>([]);
 
   const accountRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const { notifications, readNotifications, markAllRead: markAllRead } = useNotifications();
 
   useEffect(() => {
     const loadUser = async (nextUser: User | null) => {
@@ -49,23 +48,6 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const readKey = `achievers-read-notifications-${user.uid}`;
-    const welcomeId = `welcome-${user.uid}`;
-    const saved = JSON.parse(localStorage.getItem(readKey) || "[]") as string[];
-    void getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(30))).then((snap) => {
-      setReadNotifications(saved);
-      const items: { id: string; text: string; createdAt?: { toMillis: () => number } }[] = snap.docs.map((d) => ({ id: d.id, text: String(d.data().text || ""), createdAt: d.data().createdAt }));
-      if (!localStorage.getItem(welcomeId)) {
-        items.push({ id: welcomeId, text: "Welcome to Achievers CAT. Hope your journey is smooth and highly productive!" });
-        localStorage.setItem(welcomeId, "true");
-      }
-      items.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      setNotifications(items);
-    });
-  }, [user]);
-
-  useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
       if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) setNotificationsOpen(false);
@@ -73,13 +55,6 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
-
-  function markAllRead() {
-    if (!user) return;
-    const ids = notifications.map((n) => n.id);
-    setReadNotifications(ids);
-    localStorage.setItem(`achievers-read-notifications-${user.uid}`, JSON.stringify(ids));
-  }
 
   async function logout() {
     await signOutUser();

@@ -7,6 +7,7 @@ import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import Toast from "./Toast";
 import { StudentStreakProvider } from "./StudentStreakProvider";
+import { NotificationsProvider } from "./NotificationsContext";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,6 +55,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <NotificationsProvider>
     <StudentStreakProvider>
       <div
         className="flex min-h-screen"
@@ -94,5 +96,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <Toast />
     </StudentStreakProvider>
+    </NotificationsProvider>
   );
 }

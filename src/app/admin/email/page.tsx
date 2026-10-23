@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminGuard from "@/components/AdminGuard";
-import { collection, doc, getDoc, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, getCountFromServer, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { Mail, RefreshCw, Users, CheckCircle, XCircle, BarChart2, Send, Loader2, Info } from "lucide-react";
 import { showToast } from "@/components/Toast";
@@ -51,18 +51,17 @@ function EmailDashboard() {
     async function load() {
       try {
         const today = todayIST();
-        const [todaySnap, historySnap, profileCountSnap] = await Promise.all([
+        const [todaySnap, historySnap] = await Promise.all([
           getDoc(doc(db, "email_logs", today)),
           getDocs(query(collection(db, "email_logs"), orderBy("date", "desc"), limit(7))),
-          getDocs(query(collection(db, "profiles"), limit(1))),
         ]);
 
         if (todaySnap.exists()) setLog(todaySnap.data() as EmailLog);
         setRecentLogs(historySnap.docs.map((d) => d.data() as EmailLog));
 
-        // Get a rough count of profiles
-        const countSnap = await getDocs(collection(db, "profiles"));
-        setTotalStudents(countSnap.size);
+        // Use getCountFromServer — costs exactly 1 read regardless of collection size
+        const countSnap = await getCountFromServer(collection(db, "profiles"));
+        setTotalStudents(countSnap.data().count);
       } catch (e) {
         console.error(e);
       } finally {

@@ -243,11 +243,20 @@ export default function Home() {
     return () => unsubs.forEach((u) => u?.());
   }, [date, leaderboardRefresh]);
 
-  useEffect(() => onSnapshot(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5)), (snap) => {
-    const entries = snap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || ""), email: String(d.data().email || ""), currentStreak: Number(d.data().currentStreak || 0) }));
-    entries.sort((a, b) => b.currentStreak - a.currentStreak);
-    setStreakLeaders(entries.slice(0, 5));
-  }, (e) => console.error(e)), []);
+  useEffect(() => {
+    const fetchStreaks = () =>
+      getDocs(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5))).then(
+        (snap) => {
+          const entries = snap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || ""), email: String(d.data().email || ""), currentStreak: Number(d.data().currentStreak || 0) }));
+          entries.sort((a, b) => b.currentStreak - a.currentStreak);
+          setStreakLeaders(entries.slice(0, 5));
+        },
+        (e) => console.error(e)
+      );
+    fetchStreaks();
+    const interval = setInterval(fetchStreaks, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const completedCount = (["quant", "varc", "dilr"] as Section[]).filter((s) => attempts[s] !== null).length;
   const targetPercentage = Math.round((completedCount / 3) * 100);

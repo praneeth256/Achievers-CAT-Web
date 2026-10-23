@@ -50,7 +50,9 @@ function MockManager() {
     setLoading(true);
     try {
       const snap = await getDocs(query(collection(db, "mocks"), orderBy("createdAt", "desc")));
-      setMocks(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Mock)));
+      const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
+      const sorted = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Mock)).sort((a, b) => mockNum(b.name) - mockNum(a.name));
+      setMocks(sorted);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load mocks.");
     } finally {
