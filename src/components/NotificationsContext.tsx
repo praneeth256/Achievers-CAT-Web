@@ -42,7 +42,7 @@ function setCache(uid: string, data: NotificationItem[]) {
   try {
     sessionStorage.setItem(CACHE_KEY_PREFIX + uid, JSON.stringify({ data, ts: Date.now() }));
   } catch {
-    // sessionStorage unavailable — ignore
+    // sessionStorage unavailable ï¿½ ignore
   }
 }
 

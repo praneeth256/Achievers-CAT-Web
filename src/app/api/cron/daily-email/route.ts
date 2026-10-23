@@ -1,7 +1,7 @@
 /**
  * Daily email cron handler — GET /api/cron/daily-email
  *
- * Invoked by Vercel Cron at 7:00 AM IST (01:30 UTC) every day.
+ * Invoked by Cloudflare Cron Trigger at 7:00 AM IST (01:30 UTC) every day.
  * Can also be triggered manually from the admin UI.
  *
  * Algorithm
@@ -67,7 +67,8 @@ function sleep(ms: number) {
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5-minute Vercel function timeout
+// Note: maxDuration is Vercel-specific and not used on Cloudflare Workers.
+// Cloudflare Cron Triggers run up to 15 min on the paid plan (Workers Paid).
 
 export async function GET(req: NextRequest) {
   // ── 1. Auth ────────────────────────────────────────────────────────────────
@@ -177,7 +178,7 @@ export async function GET(req: NextRequest) {
     let failedCount = 0;
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
-      "https://achievers-cat-web.vercel.app";
+      "https://achievers-cat.pages.dev";
 
     for (const profile of toSend) {
       try {
