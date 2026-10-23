@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
     let failedCount = 0;
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
-      "https://achievers-cat.pages.dev";
+      "https://achievers-cat.catprep.workers.dev";
 
     for (const profile of toSend) {
       try {
