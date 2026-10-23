@@ -70,7 +70,7 @@ export default function SectionalTabs() {
         // Sort by the trailing number in the mock name (e.g. "VARC Mock 3" → 3)
         // so Mock 2 always comes before Mock 10 instead of lexicographic order.
         const mockNum = (name: string) => { const m = name.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; };
-        (Object.keys(next) as Section[]).forEach((key) => next[key].sort((a, b) => mockNum(a.name) - mockNum(b.name)));
+        (Object.keys(next) as Section[]).forEach((key) => next[key].sort((a, b) => mockNum(b.name) - mockNum(a.name)));
         setData(next);
       })
       .finally(() => setLoading(false));
