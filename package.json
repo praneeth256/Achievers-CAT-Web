@@ -9,7 +9,7 @@
     "lint": "eslint",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare deploy",
+    "cf:deploy": "cross-env NODE_OPTIONS=--max-old-space-size=4096 opennextjs-cloudflare deploy",
     "cf:login": "wrangler login",
     "cf:tail": "wrangler tail"
   },
@@ -30,6 +30,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",

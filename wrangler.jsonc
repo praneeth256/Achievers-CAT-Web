@@ -11,6 +11,12 @@
     "binding": "ASSETS"
   },
 
+  // ── Non-secret environment variables ─────────────────────────────────────
+  // Secrets (FIREBASE_ADMIN_*, GMAIL_*, CRON_SECRET) stay in the dashboard.
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://achievers-cat.catprep.workers.dev"
+  },
+
   // ── Cron Triggers ─────────────────────────────────────────────────────────
   // Replaces Vercel Cron. Fires the daily-email route at 07:00 AM IST (01:30 UTC).
   // The route authenticates via the CRON_SECRET env var — same as before.
