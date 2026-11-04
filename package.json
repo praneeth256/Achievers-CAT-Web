@@ -20,6 +20,7 @@
     "firebase-admin": "^14.4.0",
     "googleapis": "^181.0.0",
     "lucide-react": "^1.34.0",
+    "mongodb": "^7.8.0",
     "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

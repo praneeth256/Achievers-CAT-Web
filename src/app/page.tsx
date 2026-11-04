@@ -35,7 +35,6 @@ import {
   getDoc,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   where,
@@ -190,21 +189,29 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) { setAttempts({ quant: null, varc: null, dilr: null }); return; }
-    const unsubs = (["quant", "varc", "dilr"] as Section[]).map((section) => {
-      const ref = doc(db, "daily_attempts", `${date}_${section}_${user.uid}`);
-      return onSnapshot(ref, (snap) => {
-        setAttempts((prev) => ({
-          ...prev,
-          [section]: snap.exists() ? {
-            score: Number(snap.data().score || 0),
-            correct: Number(snap.data().correct || 0),
-            wrong: Number(snap.data().wrong || 0),
-            total: Number(snap.data().total || 0),
-          } : null,
-        }));
-      }, (e) => console.error(`${section} attempt:`, e));
-    });
-    return () => unsubs.forEach((u) => u());
+    let active = true;
+    // One-shot reads: the user's own daily-attempt docs don't change behind the
+    // scenes without their own action. The offline persistence cache makes
+    // repeat visits free.
+    Promise.all(
+      (["quant", "varc", "dilr"] as Section[]).map((section) =>
+        getDoc(doc(db, "daily_attempts", `${date}_${section}_${user.uid}`))
+      )
+    ).then((snaps) => {
+      if (!active) return;
+      const next: Record<Section, Attempt | null> = { quant: null, varc: null, dilr: null };
+      (["quant", "varc", "dilr"] as Section[]).forEach((section, i) => {
+        const snap = snaps[i];
+        next[section] = snap.exists() ? {
+          score: Number(snap.data().score || 0),
+          correct: Number(snap.data().correct || 0),
+          wrong: Number(snap.data().wrong || 0),
+          total: Number(snap.data().total || 0),
+        } : null;
+      });
+      setAttempts(next);
+    }).catch((e) => console.error("daily_attempts:", e));
+    return () => { active = false; };
   }, [user, date]);
 
   useEffect(() => {
@@ -244,18 +251,27 @@ export default function Home() {
   }, [date, leaderboardRefresh]);
 
   useEffect(() => {
-    const fetchStreaks = () =>
-      getDocs(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5))).then(
-        (snap) => {
-          const entries = snap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || ""), email: String(d.data().email || ""), currentStreak: Number(d.data().currentStreak || 0) }));
-          entries.sort((a, b) => b.currentStreak - a.currentStreak);
-          setStreakLeaders(entries.slice(0, 5));
-        },
-        (e) => console.error(e)
-      );
-    fetchStreaks();
-    const interval = setInterval(fetchStreaks, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    // Fetch once per session — top streak leaders don't change minute-to-minute.
+    // sessionStorage survives navigation but not tab-close, keeping data fresh.
+    const STREAK_LB_KEY = "achievers-streak-leaders";
+    const STREAK_LB_TTL = 10 * 60 * 1000; // 10 minutes
+    try {
+      const cached = sessionStorage.getItem(STREAK_LB_KEY);
+      if (cached) {
+        const { data, ts } = JSON.parse(cached) as { data: StreakEntry[]; ts: number };
+        if (Date.now() - ts < STREAK_LB_TTL) { setStreakLeaders(data); return; }
+      }
+    } catch { /* sessionStorage unavailable */ }
+    getDocs(query(collection(db, "user_streaks"), orderBy("currentStreak", "desc"), limit(5))).then(
+      (snap) => {
+        const entries = snap.docs.map((d) => ({ userId: String(d.data().userId || d.id), displayName: String(d.data().displayName || ""), email: String(d.data().email || ""), currentStreak: Number(d.data().currentStreak || 0) }));
+        entries.sort((a, b) => b.currentStreak - a.currentStreak);
+        const top5 = entries.slice(0, 5);
+        setStreakLeaders(top5);
+        try { sessionStorage.setItem(STREAK_LB_KEY, JSON.stringify({ data: top5, ts: Date.now() })); } catch { /* ignore */ }
+      },
+      (e) => console.error(e)
+    );
   }, []);
 
   const completedCount = (["quant", "varc", "dilr"] as Section[]).filter((s) => attempts[s] !== null).length;
@@ -331,6 +347,35 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* WhatsApp Group Banner */}
+          <a
+            href="https://chat.whatsapp.com/H6uiNPb2DFZE2f4xRLYDBz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 flex items-center gap-3 rounded-2xl border border-[#25D366]/30 bg-[#25D366]/10 px-4 py-3 transition-all hover:bg-[#25D366]/20 hover:border-[#25D366]/60 hover:shadow-md fade-up-delay-1 group"
+          >
+            {/* WhatsApp SVG logo */}
+            <span className="flex h-9 w-9 shrink-0 animate-pulse items-center justify-center rounded-full bg-[#25D366] shadow-lg shadow-[#25D366]/30 group-hover:animate-none">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                <path
+                  d="M16.002 3C9.374 3 4 8.373 4 14.998c0 2.117.558 4.1 1.528 5.82L4 29l8.395-1.504A12.05 12.05 0 0 0 16.002 28C22.628 28 28 22.626 28 16.002 28 9.374 22.628 3 16.002 3Z"
+                  fill="white"
+                />
+                <path
+                  d="M21.898 18.916c-.306-.153-1.807-.89-2.088-.993-.28-.1-.484-.153-.687.154-.203.306-.787.992-.965 1.196-.177.204-.355.229-.66.076-.306-.153-1.29-.476-2.458-1.515-.908-.81-1.52-1.809-1.698-2.115-.178-.306-.019-.471.134-.624.137-.136.305-.355.458-.533.153-.178.204-.306.306-.51.102-.203.051-.382-.025-.535-.077-.153-.687-1.657-.941-2.27-.248-.596-.499-.515-.688-.524l-.585-.01a1.12 1.12 0 0 0-.814.382c-.28.306-1.067 1.043-1.067 2.543 0 1.5 1.092 2.95 1.245 3.154.153.204 2.15 3.282 5.21 4.601.729.314 1.297.502 1.74.642.73.232 1.396.2 1.921.121.586-.087 1.807-.739 2.062-1.453.255-.713.255-1.325.179-1.453-.077-.127-.28-.204-.586-.357Z"
+                  fill="#25D366"
+                />
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-bold text-[#128C5E]">Join our WhatsApp Group</p>
+              <p className="text-[12px] text-[#25D366]/80">Get updates, materials &amp; tips instantly</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-[#25D366] px-3 py-1.5 text-[12px] font-bold text-white shadow-sm shadow-[#25D366]/30 transition-transform group-hover:scale-105">
+              Join Free →
+            </span>
+          </a>
 
           {/* Quick Action Cards */}
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 fade-up-delay-1">
@@ -651,3 +696,8 @@ export default function Home() {
     </div>
   );
 }
+
+
+
+
+

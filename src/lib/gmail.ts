@@ -1,6 +1,10 @@
 /**
  * Gmail API utility for sending transactional emails via OAuth2.
  *
+ * Uses the Gmail REST API directly with fetch() — no googleapis SDK.
+ * The googleapis package internally uses new Function() for auth which is
+ * banned in the Cloudflare Workers V8 isolate (causes EvalError).
+ *
  * Required environment variables (server-side only, no NEXT_PUBLIC_ prefix):
  *   GMAIL_CLIENT_ID       — OAuth2 client ID from Google Cloud Console
  *   GMAIL_CLIENT_SECRET   — OAuth2 client secret
@@ -8,16 +12,32 @@
  *   GMAIL_SENDER_EMAIL    — The Gmail address that will appear as the sender
  */
 
-import { google } from "googleapis";
+let cachedGmailToken: { token: string; expiresAt: number } | null = null;
 
-function buildOAuth2Client() {
-  const client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    "https://developers.google.com/oauthplayground" // redirect URI used during token generation
-  );
-  client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
-  return client;
+async function getGmailAccessToken(): Promise<string> {
+  if (cachedGmailToken && Date.now() < cachedGmailToken.expiresAt) {
+    return cachedGmailToken.token;
+  }
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: process.env.GMAIL_CLIENT_ID ?? "",
+      client_secret: process.env.GMAIL_CLIENT_SECRET ?? "",
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN ?? "",
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gmail token refresh failed (${res.status}): ${text}`);
+  }
+  const data = (await res.json()) as { access_token: string; expires_in: number };
+  cachedGmailToken = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+  };
+  return data.access_token;
 }
 
 /**
@@ -81,15 +101,25 @@ export interface SendEmailOptions {
  * Throws if the send fails (caller is responsible for error handling).
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-  const auth = buildOAuth2Client();
-  const gmail = google.gmail({ version: "v1", auth });
+  const token = await getGmailAccessToken();
+  const raw = buildRawMessage(options);
 
-  await gmail.users.messages.send({
-    userId: "me",
-    requestBody: {
-      raw: buildRawMessage(options),
-    },
-  });
+  const res = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ raw }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gmail send failed (${res.status}): ${text}`);
+  }
 }
 
 /**

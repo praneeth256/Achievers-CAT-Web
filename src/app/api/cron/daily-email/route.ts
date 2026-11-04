@@ -23,8 +23,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import {
+  firestoreGetCollection,
+  firestoreQuery,
+  firestoreSet,
+} from "@/lib/firebase/admin-rest";
 import { sendEmail, buildDailyReminderEmail } from "@/lib/gmail";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -32,20 +35,6 @@ import { sendEmail, buildDailyReminderEmail } from "@/lib/gmail";
 const WINDOW_SIZE = 500; // max emails per day (Gmail API free limit)
 const SECTIONS = ["quant", "varc", "dilr"] as const;
 const SEND_DELAY_MS = 200; // delay between sends to avoid Gmail rate limits
-
-// ─── Firebase Admin (lazy singleton) ─────────────────────────────────────────
-
-function getAdminApp(): App {
-  if (getApps().length > 0) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      // The private key is stored with literal \n in env vars; parse them back.
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,16 +72,14 @@ export async function GET(req: NextRequest) {
   const date = todayIST(nowMs);
 
   try {
-    const db = getFirestore(getAdminApp());
-
     // ── 2. Fetch all profiles ────────────────────────────────────────────────
-    const profilesSnap = await db.collection("profiles").get();
-    const allProfiles = profilesSnap.docs.map((d) => ({
+    const profilesDocs = await firestoreGetCollection("profiles");
+    const allProfiles = profilesDocs.map((d) => ({
       uid: d.id,
-      email: d.data().email as string | undefined,
-      displayName: (d.data().displayName || d.data().name || "Student") as string,
-      emailRotationIndex: (d.data().emailRotationIndex ?? null) as number | null,
-      dailyEmailEnabled: d.data().dailyEmailEnabled !== false,
+      email: d.data.email as string | undefined,
+      displayName: ((d.data.displayName || d.data.name || "Student") as string),
+      emailRotationIndex: (d.data.emailRotationIndex ?? null) as number | null,
+      dailyEmailEnabled: d.data.dailyEmailEnabled !== false,
     }));
 
     // ── 3. Sort by rotation index; put unindexed profiles at the end ─────────
@@ -138,23 +125,25 @@ export async function GET(req: NextRequest) {
 
     await Promise.all(
       SECTIONS.map(async (section) => {
-        // Firestore "in" operator supports up to 30 values; batch if needed.
-        const uidBatches: string[][] = [];
+        // Firestore REST "IN" operator supports up to 30 values; batch if needed.
         const uidArray = [...eligibleUids];
+        const uidBatches: string[][] = [];
         for (let i = 0; i < uidArray.length; i += 30) {
           uidBatches.push(uidArray.slice(i, i + 30));
         }
         await Promise.all(
           uidBatches.map(async (batch) => {
-            const snap = await db
-              .collection("daily_attempts")
-              .where("date", "==", date)
-              .where("section", "==", section)
-              .where("userId", "in", batch)
-              .select("userId")
-              .get();
-            snap.docs.forEach((d) =>
-              completedSections[section].add(d.data().userId as string)
+            const docs = await firestoreQuery(
+              "daily_attempts",
+              [
+                { field: "date", op: "EQUAL", value: date },
+                { field: "section", op: "EQUAL", value: section },
+                { field: "userId", op: "IN", value: batch },
+              ],
+              ["userId"]
+            );
+            docs.forEach((d) =>
+              completedSections[section].add(d.data.userId as string)
             );
           })
         );
@@ -201,7 +190,8 @@ export async function GET(req: NextRequest) {
     }
 
     // ── 8. Write audit log ───────────────────────────────────────────────────
-    await db.collection("email_logs").doc(date).set(
+    await firestoreSet(
+      `email_logs/${date}`,
       {
         date,
         totalStudents,
@@ -211,9 +201,9 @@ export async function GET(req: NextRequest) {
         skippedOptOut: windowProfiles.length - eligible.length,
         sentCount,
         failedCount,
-        sentAt: new Date(),
+        sentAt: new Date().toISOString(),
       },
-      { merge: true }
+      true // merge
     );
 
     return NextResponse.json({

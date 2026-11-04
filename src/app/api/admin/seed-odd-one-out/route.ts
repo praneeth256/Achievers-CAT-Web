@@ -8,19 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-
-function getAdminApp(): App {
-  if (getApps().length > 0) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
+import {
+  firestoreQuery,
+  firestoreCreate,
+} from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 
@@ -96,17 +87,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const app = getAdminApp();
-    const db = getFirestore(app);
-    const col = db.collection("practice_questions");
-
     // Check if already seeded
-    const existing = await col
-      .where("chapter", "==", "Odd One Out")
-      .limit(1)
-      .get();
+    const existing = await firestoreQuery(
+      "practice_questions",
+      [{ field: "chapter", op: "EQUAL", value: "Odd One Out" }],
+      ["chapter"],
+      1
+    );
 
-    if (!existing.empty) {
+    if (existing.length > 0) {
       return NextResponse.json({
         ok: true,
         message: "Already seeded — 'Odd One Out' questions exist.",
@@ -114,27 +103,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const batch = db.batch();
     const now = Date.now();
 
-    QUESTIONS.forEach((q, i) => {
-      const ref = col.doc();
-      batch.set(ref, {
-        section: "VARC-VA",
-        chapter: "Odd One Out",
-        difficulty: "Moderate",
-        question: q.question,
-        questionType: "TITA",
-        options: [],
-        correctOption: "",
-        correctAnswer: q.correctAnswer,
-        explanation: q.explanation,
-        published: true,
-        position: now + i * 1000,
-      });
-    });
-
-    await batch.commit();
+    await Promise.all(
+      QUESTIONS.map((q, i) =>
+        firestoreCreate("practice_questions", {
+          section: "VARC-VA",
+          chapter: "Odd One Out",
+          difficulty: "Moderate",
+          question: q.question,
+          questionType: "TITA",
+          options: [],
+          correctOption: "",
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          published: true,
+          position: now + i * 1000,
+        })
+      )
+    );
 
     return NextResponse.json({
       ok: true,

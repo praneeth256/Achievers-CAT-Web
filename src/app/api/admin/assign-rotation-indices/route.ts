@@ -11,19 +11,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getFirestore, WriteBatch } from "firebase-admin/firestore";
-
-function getAdminApp(): App {
-  if (getApps().length > 0) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
+import {
+  firestoreGetCollection,
+  firestoreBatchWrite,
+  type BatchWrite,
+} from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 
@@ -36,16 +28,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const db = getFirestore(getAdminApp());
-    const snap = await db.collection("profiles").get();
+    const docs = await firestoreGetCollection("profiles");
 
     // Sort all profiles by display name for a stable, predictable ordering.
-    const allProfiles = snap.docs
+    const allProfiles = docs
       .map((d) => ({
-        ref: d.ref,
-        label:
-          (d.data().displayName || d.data().name || d.data().email || d.id) as string,
-        existingIndex: d.data().emailRotationIndex as number | undefined,
+        id: d.id,
+        label: ((d.data.displayName || d.data.name || d.data.email || d.id) as string),
+        existingIndex: d.data.emailRotationIndex as number | undefined,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
@@ -58,28 +48,25 @@ export async function POST(req: NextRequest) {
 
     // Assign the next available index to profiles that don't have one.
     let nextIndex = 0;
-    const updates: { ref: FirebaseFirestore.DocumentReference; index: number }[] = [];
+    const updates: BatchWrite[] = [];
 
     for (const profile of allProfiles) {
       if (typeof profile.existingIndex !== "number") {
         // Skip over already-used indices to avoid duplicates.
         while (usedIndices.has(nextIndex)) nextIndex++;
-        updates.push({ ref: profile.ref, index: nextIndex });
+        updates.push({
+          type: "update",
+          docPath: `profiles/${profile.id}`,
+          data: { emailRotationIndex: nextIndex },
+        });
         usedIndices.add(nextIndex);
         nextIndex++;
       }
     }
 
-    // Commit in batches of 500 (Firestore limit).
-    let i = 0;
-    while (i < updates.length) {
-      const batch: WriteBatch = db.batch();
-      const slice = updates.slice(i, i + 500);
-      slice.forEach(({ ref, index }) => {
-        batch.update(ref, { emailRotationIndex: index });
-      });
-      await batch.commit();
-      i += 500;
+    // Commit in batches of 500 (Firestore REST batchWrite limit).
+    for (let i = 0; i < updates.length; i += 500) {
+      await firestoreBatchWrite(updates.slice(i, i + 500));
     }
 
     return NextResponse.json({
