@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import AdminGuard from "@/components/AdminGuard";
 import Link from "next/link";
-import { ArrowLeft, FileUp, Pencil, Trash2, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileUp, Pencil, Trash2, Loader2, ExternalLink } from "lucide-react";
 import { showToast } from "@/components/Toast";
 
 type Mock = {
@@ -32,6 +32,10 @@ const emptyForm = {
   status: "published" as "published" | "draft",
 };
 
+function indiaDate() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
 export default function AdminMocksPage() {
   return <AdminGuard><MockManager /></AdminGuard>;
 }
@@ -45,6 +49,10 @@ function MockManager() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<"full" | "sectional">("full");
+  const [announcementDate, setAnnouncementDate] = useState(indiaDate);
+  const [announcementMockId, setAnnouncementMockId] = useState("");
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementMessage, setAnnouncementMessage] = useState("");
 
   async function load() {
     setLoading(true);
@@ -61,6 +69,42 @@ function MockManager() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    let active = true;
+    getDoc(doc(db, "daily_mock_announcements", announcementDate))
+      .then((snapshot) => { if (active && snapshot.exists()) setAnnouncementMockId(String(snapshot.data().mockId || "")); })
+      .catch(() => { if (active) setAnnouncementMessage("Could not load this date's scheduled mock."); });
+    return () => { active = false; };
+  }, [announcementDate]);
+
+  function changeAnnouncementDate(date: string) {
+    setAnnouncementDate(date);
+    setAnnouncementMockId("");
+    setAnnouncementMessage("");
+  }
+
+  async function saveAnnouncement() {
+    if (!announcementMockId) {
+      setAnnouncementMessage("Choose a published mock first.");
+      return;
+    }
+    setAnnouncementSaving(true);
+    setAnnouncementMessage("");
+    try {
+      await setDoc(doc(db, "daily_mock_announcements", announcementDate), {
+        mockId: announcementMockId,
+        scheduledFor: announcementDate,
+        updatedAt: serverTimestamp(),
+      });
+      setAnnouncementMessage("Today's mock popup is scheduled.");
+      showToast("Daily mock popup scheduled");
+    } catch (error) {
+      setAnnouncementMessage(error instanceof Error ? error.message : "Could not schedule the popup.");
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  }
 
   async function save() {
     if (!editingId && !file) {
@@ -203,6 +247,33 @@ function MockManager() {
           <p className="mt-1 text-[14px] text-muted">Upload the HTML file you already use. Students will open it in a separate tab.</p>
         </div>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-brand/20 bg-brand-tint-2 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-darker"><CalendarDays size={20} /></span>
+          <div>
+            <h2 className="font-display text-[17px] font-semibold">Today&apos;s Mock popup</h2>
+            <p className="mt-1 text-[13px] text-muted">Choose the published mock students see when they open the site. Schedule another one for tomorrow whenever you&apos;re ready.</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-[180px_1fr_auto] sm:items-end">
+          <label>
+            <span className="text-[12px] font-semibold text-muted">Show on (India time)</span>
+            <input type="date" value={announcementDate} onChange={(event) => changeAnnouncementDate(event.target.value)} className="mt-1.5 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm" />
+          </label>
+          <label>
+            <span className="text-[12px] font-semibold text-muted">Published mock</span>
+            <select value={announcementMockId} onChange={(event) => setAnnouncementMockId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm">
+              <option value="">Choose a mock</option>
+              {mocks.filter((mock) => mock.status === "published").map((mock) => <option key={mock.id} value={mock.id}>{mock.name} ({mock.type === "sectional" ? mock.section : "Full"})</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={saveAnnouncement} disabled={announcementSaving || !mocks.length} className="inline-flex justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50">
+            {announcementSaving ? "Saving…" : "Schedule popup"}
+          </button>
+        </div>
+        {announcementMessage && <p className={`mt-3 text-sm ${announcementMessage.includes("scheduled") ? "text-brand-darker" : "text-danger"}`}>{announcementMessage}</p>}
+      </section>
 
       <div className="mt-6 rounded-2xl border border-border bg-white p-5">
         <div className="flex items-center justify-between gap-3">

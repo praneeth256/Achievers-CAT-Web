@@ -498,6 +498,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // One document per India calendar date. It selects the published mock
+    // displayed in the student-facing "Today's Mock" popup.
+    match /daily_mock_announcements/{date} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
 
     // --------------------------------------------------
     // GENERAL ATTEMPTS

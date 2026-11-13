@@ -8,6 +8,7 @@ import TopBar from "./TopBar";
 import Toast from "./Toast";
 import { StudentStreakProvider } from "./StudentStreakProvider";
 import { NotificationsProvider } from "./NotificationsContext";
+import DailyMockPopup from "./DailyMockPopup";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -92,6 +93,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
           <main className="flex-1">{children}</main>
+          {!pathname.startsWith("/admin") && <DailyMockPopup />}
         </div>
       </div>
       <Toast />
